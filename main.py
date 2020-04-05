@@ -73,7 +73,7 @@ def main(args):
         player_1_type = 'agenn'
         trendTracking = 'yes'
         graphOutput = 'no'
-        print('Inititating training with %s concurrent games between %s and %s player types'%(concCurrentGame,simulation_player_1,simulation_player_2))
+        print('Inititating training with %s concurrent games between %s and %s player types'%(conCurrentGame,simulation_player_1,simulation_player_2))
     else:
         conCurrentGame = get_int_choice('How many games would you like played at the same time (Recommended amount based on computer cores '+str(multiprocessing.cpu_count())+"):",1,1000)
         iterations = get_int_choice('Enter the amount of generations to be played: ',1,5000)
