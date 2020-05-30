@@ -58,13 +58,14 @@ def main(args):
 
     graphics = 'no'
     graphOutput = 'no'
-    train = 'yes'
+    train = 'no'
     trendTracking = 'no'
     evolutions = False
     spacer()
 
     if train == 'yes':
-        conCurrentGame = 36
+
+        conCurrentGame = 34
         iterations = 1000
         simulation_player_1 = 'agenn'
         simulation_player_2 = 'genn'
@@ -73,6 +74,10 @@ def main(args):
         player_1_type = 'agenn'
         trendTracking = 'yes'
         graphOutput = 'no'
+        report_interval = 1
+        debug = True   
+    
+        
         print('Inititating training with %s concurrent games between %s and %s player types'%(conCurrentGame,simulation_player_1,simulation_player_2))
     else:
         conCurrentGame = get_int_choice('How many games would you like played at the same time (Recommended amount based on computer cores '+str(multiprocessing.cpu_count())+"):",1,1000)
@@ -131,7 +136,8 @@ def main(args):
     else: player_2_nets = None
     
     if graphics == 'yes':
-        window = MyGame(SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,iterations,player_1_type,player_2_type)
+        window = MyGame(SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,iterations,player_1_type,player_2_type,
+                        player_1_nets, player_2_nets)
         window.setup()
         try:
             arcade.run()
@@ -151,7 +157,7 @@ def main(args):
             spacer()
             print("Total iterations %d out of %d" % (game + 1, iterations) )
             if evolutions == True and train == 'yes':
-                if game % 9 == 0 and game != 0:
+                if game % report_interval== 0 and game != 0:
                     if player_1_type == 'genn':
                         print(evolutionHealth)
                         bestIndexs = sorted(range(len(evolutionHealth)), key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.2//1):]
@@ -188,11 +194,15 @@ def main(args):
                 if game % 9 < 3: player_2_type == 'short'
                 elif game % 9 < 6: player_2_type == 'mid'
                 else: player_2_type == 'range'
+            clock = time.time()
             result = p.map(runOneGame,[ x + [i - 1]  for i,x in enumerate([ x for x in [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,1,player_1_type,player_2_type,conCurrentGame,game,player_1_nets,player_2_nets, trendTracking]] *conCurrentGame  ],1) ])
+            
+            print('Game simulation finished in %s seconds'%(time.timer()-clock))
             if game == 0 or game % 3 == 0: evolutionHealth = [float(i) for i in result]
             else: evolutionHealth = list(map(add, [float(i) for i in result], evolutionHealth)) 
             player1Wins += sum(int(i) > 0 for i in [int(i) for i in result]) 
             player2Wins += sum(int(i) < 0 for i in [int(i) for i in result])
+            print('player 1 wins: %s  /n  player 2 wins: %s/n'%(player1Wins,player2Wins))
             if train == 'yes':
                 if game % 9 < 3: shortWins += sum(int(i) < 0 for i in [int(i) for i in result])
                 elif game % 9 < 6: midWins += sum(int(i) < 0 for i in [int(i) for i in result])
@@ -201,10 +211,14 @@ def main(args):
             leftOverHealth += sum([float(i) for i in result])
             p.close()
             p.join()
-        if player_1_type == 'genn':
+        
+        clock = time.time()
+        if player_1_type == 'genn' or player_1_type == 'agenn':
             writeNetworks(player_1_nets)
-        if player_2_type == 'genn':
+        if player_2_type == 'genn' or player_2_type == 'agenn':
             writeNetworks(player_2_nets)
+        
+        print('Network weights written in %s seconds'%(time.timer()-clock))
         print("player 1 (" + player_1_type + "):",player1Wins)
         print("player 2 (" + player_2_type + "):",player2Wins)
         if train == 'yes':

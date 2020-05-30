@@ -172,6 +172,10 @@ class AdaptiveNetwork:
         #layers is a list of Layer objects, each of which has a list of weights
         self.layers = layers
     def createNetwork(self, adaptive = True):
+        # Set CPU as available physical device
+        my_devices = tf.config.experimental.list_physical_devices(device_type='CPU')
+        tf.config.experimental.set_visible_devices(devices= my_devices, device_type='CPU')
+        
         tensors = []
         results = []
         inputs = keras.Input(shape=(17,),batch_size =1,name = 'inputs')

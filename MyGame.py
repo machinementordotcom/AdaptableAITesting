@@ -12,12 +12,14 @@ from FSMPlayers.AllEnemy import *
 from FSMPlayers.HumanPlayer import *
 from util.inputFunctions import *
 from DynamicController.DynamicController import *
-from GENN import * 
+from GENN.GENN import GENN
+#from GENN.GENNFunctions import G
 
 
 class MyGame(arcade.Window):
     """ Main application class. """
-    def __init__(self, width, height, title,iterations,player_1_type,player_2_type):
+    def __init__(self, width, height, title,iterations,player_1_type,player_2_type,
+                 player_1_nets, player_2_nets):
         """
         Initializer
         """
@@ -33,6 +35,9 @@ class MyGame(arcade.Window):
         self.iterations = iterations
         self.player1_type = player_1_type.lower()
         self.player2_type = player_2_type.lower()
+
+        self.player_1_nets = player_1_nets
+        self.player_2_nets = player_2_nets
 
         # Sprite lists
         self.player_list = None
@@ -144,11 +149,12 @@ class MyGame(arcade.Window):
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'genn':
             self.player1 = GENN(KNIGHT_IMAGE,1)
-            self.player1.net = self.player_1_nets[self.process_id]
+            self.player1.net = self.player_1_nets[self.process_id] #Change it to 0 for GUI
             self.player1.model =  self.player1.net.createNetwork()
         elif self.player1_type.lower() == 'agenn':  # JTW add option for adaptive GENN
+
             self.player1 = GENN(KNIGHT_IMAGE,1)
-            self.player1.net = self.player_1_nets[self.process_id]
+            self.player1.net = self.player_1_nets[self.process_id] # Change it to 0 for GUI
             self.player1.model =  self.player1.net.createNetwork(adaptive = True)
         else:
             self.player1 = Enemy(MAGE_IMAGE,SPRITE_SCALING)
