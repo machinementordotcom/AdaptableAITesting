@@ -80,8 +80,8 @@ def main(args):
         trendTracking = 'yes'
         graphOutput = 'no'
         report_interval = 1
-        debug = True
-        
+        debug = True   
+    
         
         print('Inititating training with %s concurrent games between %s and %s player types'%(conCurrentGame,simulation_player_1,simulation_player_2))
     else:
