@@ -1,20 +1,32 @@
-from util.constants import *
 import random
 import re 
 import math
+
+import arcade
+
+from util.constants import RANDOM_SEED, ARROW_SPEED, \
+    SCREEN_WIDTH, SCREEN_HEIGHT, ARROW_IMAGE_HEIGHT, \
+    MOVEMENT_SPEED
+from util import constants
+
+
 random.seed(RANDOM_SEED)
+
+
 def excludeSums(nums,id):
     if (id > len(nums)): raise Exception("problem with summing function")
     return sum(nums[0:id]+nums[id+1:])
+
 def shortattack(self,angle_adjustment):
-        knife = Knife("images/knife.png",.1)
+        knife = constants.Knife("images/knife.png",.1)
         knife.center_x = self.center_x
         knife.center_y = self.center_y
         knife.angle = self.angle-180 + angle_adjustment
         self.knife_num += 1 # prevents multiple knifes from being created
         self.knife_list.append(knife)
+
 def throwfireball(self,angle_adjustment):
-    fireball = Fireball("images/fire.png", .1)
+    fireball = constants.Fireball("images/fire.png", .1)
     fireball.center_x = self.center_x
     fireball.center_y = self.center_y
     fireball.start_x = self.center_x 
@@ -23,7 +35,7 @@ def throwfireball(self,angle_adjustment):
     fireball.change_x = -ARROW_SPEED*math.sin(math.radians(self.angle))
     fireball.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
     self.fireball_list.append(fireball)
-    hit = HitBox("images/fire.png")
+    hit = constants.HitBox("images/fire.png")
     hit._set_alpha(0)
     hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
     hit._set_width(ARROW_IMAGE_HEIGHT)
@@ -32,8 +44,9 @@ def throwfireball(self,angle_adjustment):
     hit.center_y = self.center_y + math.cos(math.radians(hit.angle)) * hit.height/2
     fireball.hit = hit
     self.hitbox_list.append(hit)
+
 def shootarrow(self,angle_adjustment):
-    arrow = Arrow("images/arrow.png",.1)
+    arrow = constants.Arrow("images/arrow.png",.1)
     arrow.center_x = self.center_x
     arrow.center_y = self.center_y
     arrow.start_x = self.center_x 
@@ -42,7 +55,7 @@ def shootarrow(self,angle_adjustment):
     arrow.change_x = -ARROW_SPEED*math.sin(math.radians(self.angle))
     arrow.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
     self.arrow_list.append(arrow)
-    hit = HitBox("images/fire.png")
+    hit = constants.HitBox("images/fire.png")
     hit._set_alpha(0)
     hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
     hit._set_width(ARROW_IMAGE_HEIGHT)
@@ -51,6 +64,7 @@ def shootarrow(self,angle_adjustment):
     hit.center_y = self.center_y + math.cos(math.radians(hit.angle)) * hit.height/2
     arrow.hit = hit
     self.hitbox_list.append(hit)
+
 def moveTowards(self):
     y_change = 0
     x_change = 0
@@ -62,6 +76,7 @@ def moveTowards(self):
         y_change += MOVEMENT_SPEED
     else:
         y_change -= MOVEMENT_SPEED
+
 def moveAway(self):
     x_diff = self.opponent.center_x - self.center_x
     y_diff = self.opponent.center_y - self.center_y
@@ -77,6 +92,7 @@ def moveAway(self):
 def chooseType(sampleWeights):
     rules = ["rule" + str(i) for i in range(1,len(sampleWeights)+1)]
     return random.choices(population = rules,weights = sampleWeights, k = 1)[0]
+
 def chooseWeight(self):
     if self.adjusting == 'both':
         self.shootRule = chooseType(self.weights[0])
@@ -85,6 +101,7 @@ def chooseWeight(self):
         self.move_direction_choice = random.choices(population = ["away","toward"],weights = self.weights[1][14:16], k = 1)[0]
         self.x_dodge_direction_choice = random.choices(population = [-1,1],weights = self.weights[1][16:18], k = 1)[0]
         self.y_dodge_direction_choice = random.choices(population = [-1,1],weights = self.weights[1][18:20], k = 1)[0]
+
     elif self.adjusting == 'shoot':
         self.shootRule = "rule" + str(self.adjustingWeight + 1)
         self.move_away_choice = random.choices(population = [50,100,150,200,250,300,350],weights = self.weights[1][0:7], k = 1)[0]
@@ -92,6 +109,7 @@ def chooseWeight(self):
         self.move_direction_choice = random.choices(population = ["away","toward"],weights = self.weights[1][14:16], k = 1)[0]
         self.x_dodge_direction_choice = random.choices(population = [-1,1],weights = self.weights[1][16:18], k = 1)[0]
         self.y_dodge_direction_choice = random.choices(population = [-1,1],weights = self.weights[1][18:20], k = 1)[0]
+
     elif self.adjusting == 'move':
         self.shootRule = chooseType(self.weights[0])
         if 0 <= self.adjustingWeight <= 6:
@@ -177,6 +195,7 @@ def playerLogic(self):
     elif self.move_direction_choice == "toward":
         if self.d > self.move_toward_choice:
             moveTowards(self)
+
 def changeWeights(self,adjusting,aW):
     learning_rate = 0.1
     v = 1.1 * (1 + learning_rate * abs(self.benchmarkDifference/100))
@@ -185,7 +204,7 @@ def changeWeights(self,adjusting,aW):
     elif self.benchmarkDifference == 0:
         v = 1
     health_diff = self.health - self.opponent.health
-    if adjusting == None:
+    if adjusting is None:
         pass
     elif adjusting == 'shoot': 
         weightClass = 0
@@ -234,7 +253,7 @@ def changeWeights(self,adjusting,aW):
                     self.weights[weightClass][i] *= w  
 
 def update_weights(self,ind):
-    if ind == True:
+    if ind:
         self.writeWeights()
         if self.adjusting == 'both':
             changeWeights(self,'shoot',int(re.findall(r'\d+',self.shootRule)[0]) - 1)
@@ -243,7 +262,7 @@ def update_weights(self,ind):
             changeWeights(self,'move',["away","toward"].index(self.move_direction_choice) + 14)
             changeWeights(self,'move',[-1,1].index(self.x_dodge_direction_choice) + 16)
             changeWeights(self,'move',[-1,1].index(self.y_dodge_direction_choice) + 18)
-        elif self.adjusting != None:
+        elif self.adjusting is not None:
             changeWeights(self,self.adjusting,self.adjustingWeight)
     chooseWeight(self)
 

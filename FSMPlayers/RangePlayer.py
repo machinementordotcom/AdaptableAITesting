@@ -1,15 +1,19 @@
 import arcade
 import math
 import random
-from util.constants import * 
+from util import constants
+from util.constants import ARROW_SPEED, \
+    MOVEMENT_SPEED, PLAYER_HEALTH, SCREEN_WIDTH, \
+    SCREEN_HEIGHT, ARROW_IMAGE_HEIGHT
 
 class RangePlayer(arcade.Sprite):
     def equipshield(self):
         self.set_texture(1)
         self.health += PLAYER_HEALTH*.5
         self.shield +=1
+
     def shootarrow(self):
-        arrow = Arrow("images/arrow.png",.1)
+        arrow = constants.Arrow("images/arrow.png",.1)
         arrow.center_x = self.center_x
         arrow.center_y = self.center_y
         arrow.start_x = self.center_x # for tracking 
@@ -18,7 +22,7 @@ class RangePlayer(arcade.Sprite):
         arrow.change_x = -ARROW_SPEED*math.sin(math.radians(self.angle))
         arrow.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
         self.arrow_list.append(arrow)
-        hit = HitBox("images/fire.png")
+        hit = constants.HitBox("images/fire.png")
         hit._set_alpha(0)
         hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
         hit._set_width(ARROW_IMAGE_HEIGHT)

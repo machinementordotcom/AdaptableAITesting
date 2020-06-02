@@ -1,22 +1,26 @@
 import arcade
 import math
 import random
-from util.constants import * 
+from util import constants
+from util.constants import MOVEMENT_SPEED, PLAYER_HEALTH\
+    , ARROW_IMAGE_HEIGHT, SHORT_SPEED_HANDICAP
+
 
 class ShortRangePlayer(arcade.Sprite):
     def equipshield(self):
         self.set_texture(1)
         self.health += PLAYER_HEALTH*.5
         self.shield +=1
+        
     def shortattack(self):
-        knife = Knife("images/knife.png",.1)
+        knife = constants.Knife("images/knife.png",.1)
         knife.center_x = self.center_x
         knife.center_y = self.center_y
         knife.angle = self.angle-180
         self.knife_num += 1 # prevents multiple knifes from being created
         self.knife_list.append(knife)
 
-        hit = HitBox("images/fire.png")
+        hit = constants.HitBox("images/fire.png")
         hit._set_alpha(0)
         hit._set_height(5)
         hit._set_width(ARROW_IMAGE_HEIGHT)

@@ -1,15 +1,22 @@
 import arcade
 import math
 import random
-from util.constants import * 
+from util import constants
+from util.constants import ARROW_SPEED, \
+    MOVEMENT_SPEED, PLAYER_HEALTH, SCREEN_WIDTH, \
+    SCREEN_HEIGHT, ARROW_IMAGE_HEIGHT, \
+    MID_SPEED_HANDICAP
+
 
 class MidRangePlayer(arcade.Sprite):
     def equipshield(self):
         self.set_texture(1)
         self.health += PLAYER_HEALTH*.5
         self.shield +=1
+
+
     def throwfire(self):
-        fireball = Fireball("images/fire.png", .1)
+        fireball = constants.Fireball("images/fire.png", .1)
         fireball.center_x = self.center_x
         fireball.center_y = self.center_y
         fireball.start_x = self.center_x # for tracking 
@@ -20,7 +27,7 @@ class MidRangePlayer(arcade.Sprite):
         
         self.fireball_list.append(fireball)
 
-        hit = HitBox("images/fire.png")
+        hit = constants.HitBox("images/fire.png")
         hit._set_alpha(0)
         hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
         hit._set_width(ARROW_IMAGE_HEIGHT)

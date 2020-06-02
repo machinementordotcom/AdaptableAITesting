@@ -1,6 +1,10 @@
 import math
 import random
-from util.constants import * 
+import arcade
+from util import constants
+from util.constants import ARROW_SPEED, SCREEN_HEIGHT, SCREEN_WIDTH, PLAYER_HEALTH, ARROW_IMAGE_HEIGHT, BOX, \
+    MOVEMENT_SPEED, MID_SPEED_HANDICAP
+
 
 class MidRangePlayer(arcade.Sprite):
     def check_for_collision(self,player,projectiles):
@@ -19,7 +23,7 @@ class MidRangePlayer(arcade.Sprite):
         self.health += PLAYER_HEALTH*.5
         self.shield +=1
     def throwfire(self):
-        fireball = Fireball("images/fire.png", .1)
+        fireball = constants.Fireball("images/fire.png", .1)
         fireball.center_x = self.center_x
         fireball.center_y = self.center_y
         fireball.start_x = self.center_x # for tracking 
@@ -31,7 +35,7 @@ class MidRangePlayer(arcade.Sprite):
         fireball.box = BOX
         self.fireball_list.append(fireball)
 
-        hit = HitBox("images/fire.png")
+        hit = constants.HitBox("images/fire.png")
         hit._set_alpha(0)
         hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
         hit._set_width(ARROW_IMAGE_HEIGHT)

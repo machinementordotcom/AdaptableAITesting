@@ -1,6 +1,7 @@
 import random 
 import numpy as np
-from util.constants import * 
+from util import neural_net
+from util import constants
 import csv
 import ast
 
@@ -20,16 +21,16 @@ def createNets(conCurrentGame, adaptive = False):
                 nodeWeights = np.random.rand(1,inputsNum,totalNodes[0]).tolist()[0]
             else:
                 nodeWeights = np.random.rand(1,totalNodes[j-1],totalNodes[j]).tolist()[0]
-            layers.append(Layer(nodeWeights))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+            layers.append(constants.Layer(nodeWeights))
+        layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+        layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+        layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+        layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+        layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         if adaptive == True: #JTW modified to optionally allow creating adaptive network which adjusts its own weights
-            nets.append(AdaptiveNetwork(layers))
+            nets.append(neural_net.AdaptiveNetwork(layers))
         else:
-            nets.append(Network(layers))
+            nets.append(neural_net.Network(layers))
     return nets
 
 def createNet(specificLayers = None,specificNodes = None, adaptive = False):
@@ -48,16 +49,16 @@ def createNet(specificLayers = None,specificNodes = None, adaptive = False):
             nodeWeights = np.random.rand(1,inputsNum,totalNodes[0]).tolist()[0]
         else:
             nodeWeights = np.random.rand(1,totalNodes[j-1],totalNodes[j]).tolist()[0]
-        layers.append(Layer(nodeWeights))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+        layers.append(constants.Layer(nodeWeights))
+    layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+    layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+    layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+    layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
+    layers.append(constants.Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
     if adaptive == True:  #JTW modified to optionally allow creating adaptive network which adjusts its own weights
-        return AdaptiveNetwork(layers)
+        return neural_net.neural_net.AdaptiveNetwork(layers)
     else:
-        return Network(layers)
+        return neural_net.Network(layers)
 
 def createChildNets(parents,number, adaptive = False):
     return createNets(number)
@@ -135,10 +136,10 @@ def readNets(nets, adaptive = False):
             temp = []
             for j in row:
                 temp.append(ast.literal_eval(j))
-            layers.append(Layer(temp))
+            layers.append(constants.Layer(temp))
         if adaptive:
-            return[AdaptiveNetwork(layers)] * nets 
+            return[neural_net.AdaptiveNetwork(layers)] * nets
         else:
-            return [Network(layers)] * nets  
+            return [neural_net.Network(layers)] * nets
 
 

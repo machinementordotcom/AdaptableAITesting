@@ -4,16 +4,21 @@ import math
 import random
 import sys
 import time
-from arcade.arcade_types import Color
+
+from DynamicController.dynamicControllerFunctions import chooseWeight
 from FSMPlayers.RangePlayer import *
 from FSMPlayers.MidRangePlayer import *
 from FSMPlayers.ShortRangePlayer import *
 from FSMPlayers.AllEnemy import *
 from FSMPlayers.HumanPlayer import *
-from util.inputFunctions import *
+
 from DynamicController.DynamicController import *
-from GENN.GENN import GENN
-#from GENN.GENNFunctions import G
+from GENN import GENN
+
+from util.constants import RANDOM_SEED, \
+    PLAYER_HEALTH, SCREEN_WIDTH, SCREEN_HEIGHT, MAGE_IMAGE, \
+    SPRITE_SCALING, KNIGHT_IMAGE, ANGLE_SPEED, FIREBALL_DAMAGE, \
+    ARROW_DAMAGE, KNIFE_DAMAGE
 
 
 class MyGame(arcade.Window):
@@ -148,12 +153,12 @@ class MyGame(arcade.Window):
                 self.player1.readWeights()
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'genn':
-            self.player1 = GENN(KNIGHT_IMAGE,1)
+            self.player1 = GENN.GENN(KNIGHT_IMAGE,1)
             self.player1.net = self.player_1_nets[self.process_id] #Change it to 0 for GUI
             self.player1.model =  self.player1.net.createNetwork()
         elif self.player1_type.lower() == 'agenn':  # JTW add option for adaptive GENN
 
-            self.player1 = GENN(KNIGHT_IMAGE,1)
+            self.player1 = GENN.GENN(KNIGHT_IMAGE,1)
             self.player1.net = self.player_1_nets[self.process_id] # Change it to 0 for GUI
             self.player1.model =  self.player1.net.createNetwork(adaptive = True)
         else:
@@ -327,7 +332,7 @@ class MyGame(arcade.Window):
             # Fireball
             elif key == arcade.key.E:
                 self.player1.throwfire()
-                Knife
+
             elif key == arcade.key.R and self.player1.knife_num == 0:
                 self.player1.shortattack()
             elif key == arcade.key.ESCAPE:
@@ -359,7 +364,7 @@ class MyGame(arcade.Window):
             # Fireball
             elif key == arcade.key.E:
                 self.player2.throwfire()
-                Knife
+
             elif key == arcade.key.R and self.player2.knife_num == 0:
                 self.player2.shortattack()
             elif key == arcade.key.ESCAPE:

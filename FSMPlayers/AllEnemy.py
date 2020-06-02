@@ -1,11 +1,12 @@
 import arcade
 import math
-import random
-from util.constants import * 
+from util import constants
+from util.constants import ARROW_SPEED, MOVEMENT_SPEED
+
 
 class Enemy(arcade.Sprite):
     def throwfire(self):
-        fireball = Fireball("images/fire.png", .1)
+        fireball = constants.Fireball("images/fire.png", .1)
         fireball.center_x = self.center_x
         fireball.center_y = self.center_y
         fireball.start_x = self.center_x # for tracking 
@@ -15,25 +16,29 @@ class Enemy(arcade.Sprite):
         fireball.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
         
         self.fireball_list.append(fireball)
+
     def shootarrow(self):
-        arrow = Arrow("images/arrow.png",.1)
+        arrow = constants.Arrow("images/arrow.png",.1)
         arrow.center_x = self.center_x
         arrow.center_y = self.center_y
         arrow.angle = self.angle-90
         arrow.change_x = -ARROW_SPEED*math.sin(math.radians(self.angle))
         arrow.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
         self.arrow_list.append(arrow)
+
     def equipshield(self):
         self.set_texture(1)
         self.health += 50
         self.shield +=1
+
     def shortattack(self):
-        knife = Knife("images/knife.png",.1)
+        knife = constants.Knife("images/knife.png",.1)
         knife.center_x = self.center_x
         knife.center_y = self.center_y
         knife.angle = self.angle-180
         self.knife_num += 1 # prevents multiple knifes from being created
         self.knife_list.append(knife)
+
     def update(self):
         self.curtime += 1 
         x_diff = self.opponent.center_x - self.center_x

@@ -6,7 +6,8 @@ import math
 import random
 import sys
 import time
-from arcade.arcade_types import Color
+
+from DynamicController.DynamicControllerSimFunctions import chooseWeight
 from FSMPlayers.RangePlayerSim import *
 from FSMPlayers.MidRangeSim import *
 from FSMPlayers.ShortRangeSim import *
@@ -15,11 +16,21 @@ from FSMPlayers.HumanPlayer import *
 from util.inputFunctions import *
 from DynamicController.DynamicControllerSim import *
 from GENN.GENN import * 
-from util.constants import *
+from util.neural_net import *
 import multiprocessing
 import numpy as np 
 import json
-import matplotlib.pyplot as plt
+
+from util.constants import RANDOM_SEED, \
+    SCREEN_HEIGHT, \
+    SCREEN_WIDTH, \
+    PLAYER_HEALTH, \
+    KNIGHT_IMAGE, \
+    ARROW_DAMAGE, \
+    FIREBALL_DAMAGE, \
+    KNIFE_DAMAGE, ARROW_SPEED
+
+from util import constants
 
 random.seed(RANDOM_SEED)
 
@@ -63,6 +74,7 @@ class Game:
         self.player1.center_y = random.randint(0,SCREEN_HEIGHT)
         self.player2.center_x = random.randint(0,SCREEN_WIDTH)
         self.player2.center_y = random.randint(0,SCREEN_HEIGHT)
+
     def writeTrends(self):
         if self.written == 0 and self.iterations == self.totalIterations:
             with open("player1Trends.txt",'w+') as myfile:
@@ -81,6 +93,7 @@ class Game:
         self.written += 1    
         self.player1.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
         self.player2.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
+
     def setup(self):
         self.player_list = []
         self.arrow_list = []
@@ -334,22 +347,22 @@ class Game:
     # There are 2 functions for each so it is easy to not interfere 
     # with each other
     def arrow1(self):
-        self.arw = ArrowSimulated(self.player1.center_x,self.player1.center_y,ARROW_SPEED,self.player1.box)
+        self.arw = constants.ArrowSimulated(self.player1.center_x,self.player1.center_y,ARROW_SPEED,self.player1.box)
         self.player1.arrow_list.append(self.arw)
         
     def arrow2(self):
 
-        self.arw = ArrowSimulated(self.player2.center_x,self.player2.center_y,ARROW_SPEED,self.player2.box)
+        self.arw = constants.ArrowSimulated(self.player2.center_x,self.player2.center_y,ARROW_SPEED,self.player2.box)
         self.player2.arrow_list.append(self.arw)
         
     def fire1(self):
 
-        self.fireball = FireballSimulated(self.player1.center_x,self.player1.center_y,ARROW_SPEED,self.player1.box)  
+        self.fireball = constants.FireballSimulated(self.player1.center_x,self.player1.center_y,ARROW_SPEED,self.player1.box)
         self.player1.fireball_list.append(self.fireball)
         
     def fire2(self):
 
-        self.fireball = FireballSimulated(self.player2.center_x,self.player2.center_y,ARROW_SPEED,self.player2.box)  
+        self.fireball = constants.FireballSimulated(self.player2.center_x,self.player2.center_y,ARROW_SPEED,self.player2.box)
         self.player2.fireball_list.append(self.fireball)
     
     def equip_shield1(self):
@@ -364,8 +377,8 @@ class Game:
 
     def collisionCheck(self,player,projectile):
         if (
-                (     player.center_x - player.box <= projectile.center_x + projectile.box and player.center_x + player.box >= projectile.center_x + projectile.box  
-                or   player.center_x - player.box <= projectile.center_x - projectile.box and player.center_x + player.box >= projectile.center_x - projectile.box 
+                (     player.center_x - player.box <= projectile.center_x + projectile.box and player.center_x + player.box >= projectile.center_x + projectile.box
+                or   player.center_x - player.box <= projectile.center_x - projectile.box and player.center_x + player.box >= projectile.center_x - projectile.box
                 or   player.center_x - player.box <= projectile.center_x and player.center_x + player.box >= projectile.center_x  )
                 and 
                 (    player.center_y - player.box <= projectile.center_y + projectile.box and player.center_y + player.box >= projectile.center_y + projectile.box

@@ -1,4 +1,3 @@
-import os 
 EXIT_STR = 'exit'
 
 def spacer():
@@ -52,7 +51,7 @@ def get_int_choice(i_prompt, min_range: int = 0, max_range: int = 10):
             print('Invalid choice. MUST be an integer.')
             continue
 
-        if choice >= min_range and choice <= max_range:
+        if min_range <= choice <= max_range:
             return choice
 
         print('\nInvalid choice. Must be between %i and %i' %

@@ -4,19 +4,24 @@ sys.stdout = open(os.devnull, 'w')
 from MyGame import *
 import arcade
 from sim import *
-from util.constants import * 
-from util.inputFunctions import * 
-from GENN.GENNFunctions import * 
-from GENN.GENN import GENN
+
+from util import neural_net
+
+from util import inputFunctions
+
+from GENN.GENNFunctions import *
 import time
 import multiprocessing
-from operator import add 
-from ctypes import c_int
+from operator import add
 from operator import itemgetter 
 import pandas as pd
-import json
 import re 
 import matplotlib.ticker as ticker
+import matplotlib.pyplot as plt
+
+from util.constants import SCREEN_WIDTH, \
+    SCREEN_HEIGHT, \
+    SCREEN_TITLE
 
 sys.stdout = sys.__stdout__
 
@@ -24,7 +29,7 @@ def runOneGame(a):
     x = Game(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11])
     x.setup()
     val = True
-    while val == True:
+    while val:
         val = x.update()
     return val
 
@@ -65,8 +70,8 @@ def main(args):
 
     if train == 'yes':
 
-        conCurrentGame = 34
-        iterations = 1000
+        conCurrentGame = 1
+        iterations = 1
         simulation_player_1 = 'agenn'
         simulation_player_2 = 'genn'
         player_2_type = 'genn'
@@ -80,36 +85,36 @@ def main(args):
         
         print('Inititating training with %s concurrent games between %s and %s player types'%(conCurrentGame,simulation_player_1,simulation_player_2))
     else:
-        conCurrentGame = get_int_choice('How many games would you like played at the same time (Recommended amount based on computer cores '+str(multiprocessing.cpu_count())+"):",1,1000)
-        iterations = get_int_choice('Enter the amount of generations to be played: ',1,5000)
-        trendTracking = get_str_choice("Would you like to track trends",'yes','no')
-        graphOutput = get_str_choice("Would you like to create graphical outputs?",'yes','no')
-        simulation_player_1 = get_str_choice("What type of simulation do you want for player 1?",'fsm','freeplay','dc','genn','agenn')
+        conCurrentGame = inputFunctions.get_int_choice('How many games would you like played at the same time (Recommended amount based on computer cores '+str(multiprocessing.cpu_count())+"):",1,1000)
+        iterations = inputFunctions.get_int_choice('Enter the amount of generations to be played: ',1,5000)
+        trendTracking = inputFunctions.get_str_choice("Would you like to track trends",'yes','no')
+        graphOutput = inputFunctions.get_str_choice("Would you like to create graphical outputs?",'yes','no')
+        simulation_player_1 = inputFunctions.get_str_choice("What type of simulation do you want for player 1?",'fsm','freeplay','dc','genn','agenn')
         if simulation_player_1.lower() == "freeplay":
             player_1_type = "human"
             graphics = 'yes'
         elif simulation_player_1.lower() == "fsm":
-            player_1_type = get_str_choice("What type of player is player 1 ?",'short','mid','range','pq')
+            player_1_type = inputFunctions.get_str_choice("What type of player is player 1 ?",'short','mid','range','pq')
         elif simulation_player_1.lower() == "dc":
-            player_1_type = get_str_choice("What type of dynamic controller is player 1 ?",'master','average','random','train')
+            player_1_type = inputFunctions.get_str_choice("What type of dynamic controller is player 1 ?",'master','average','random','train')
         elif simulation_player_1.lower() == "genn":
             player_1_type = "genn"
         elif simulation_player_1.lower() == "agenn":
             player_1_type = "agenn"
-        simulation_player_2 = get_str_choice("What type of simulation do you want for player 2?",'fsm','dc','freeplay','genn','agenn')
+        simulation_player_2 = inputFunctions.get_str_choice("What type of simulation do you want for player 2?",'fsm','dc','freeplay','genn','agenn')
         if simulation_player_2 == "freeplay":
             player_2_type = "human"
             graphics = 'yes'
         if simulation_player_2 == "fsm":
-            player_2_type = get_str_choice("What type of player is player 2?",'short','mid','range','pq')
+            player_2_type = inputFunctions.get_str_choice("What type of player is player 2?",'short','mid','range','pq')
         elif simulation_player_2.lower() == "dc":
-            player_2_type = get_str_choice("What type of dynamic controller is player 2 ?",'master','average','random')
+            player_2_type = inputFunctions.get_str_choice("What type of dynamic controller is player 2 ?",'master','average','random')
         elif simulation_player_2.lower() == "genn":
             player_2_type = "genn"
         elif simulation_player_2.lower() == "agenn":
             player_2_type = "agenn"
         if graphics == 'no':
-            graphics = get_str_choice('Run Graphically?: ','yes','no')
+            graphics = inputFunctions.get_str_choice('Run Graphically?: ','yes','no')
     
     if player_1_type == 'genn' and train == 'yes':
         evolutions = True
@@ -154,7 +159,7 @@ def main(args):
         leftOverHealth = 0
         evolutionHealth = []
         for game in range(iterations):
-            spacer()
+            inputFunctions.spacer()
             print("Total iterations %d out of %d" % (game + 1, iterations) )
             if evolutions == True and train == 'yes':
                 if game % report_interval== 0 and game != 0:
@@ -197,7 +202,7 @@ def main(args):
             clock = time.time()
             result = p.map(runOneGame,[ x + [i - 1]  for i,x in enumerate([ x for x in [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,1,player_1_type,player_2_type,conCurrentGame,game,player_1_nets,player_2_nets, trendTracking]] *conCurrentGame  ],1) ])
             
-            print('Game simulation finished in %s seconds'%(time.timer()-clock))
+            print('Game simulation finished in %s seconds'%(time.time()-clock))
             if game == 0 or game % 3 == 0: evolutionHealth = [float(i) for i in result]
             else: evolutionHealth = list(map(add, [float(i) for i in result], evolutionHealth)) 
             player1Wins += sum(int(i) > 0 for i in [int(i) for i in result]) 

@@ -1,6 +1,11 @@
 import math
 import random
-from util.constants import * 
+import arcade
+from util import constants
+from util.constants import ARROW_SPEED, \
+    MOVEMENT_SPEED, PLAYER_HEALTH, SCREEN_WIDTH, \
+    SCREEN_HEIGHT, ARROW_IMAGE_HEIGHT, BOX
+
 
 class RangePlayer(arcade.Sprite):
     def check_for_collision(self,player,projectiles):
@@ -18,8 +23,9 @@ class RangePlayer(arcade.Sprite):
     def equipshield(self):
         self.health += PLAYER_HEALTH*.5
         self.shield +=1
+
     def shootarrow(self):
-        arrow = Arrow("images/arrow.png",.1)
+        arrow = constants.Arrow("images/arrow.png",.1)
         arrow.center_x = self.center_x
         arrow.center_y = self.center_y
         arrow.start_x = self.center_x # for tracking 
@@ -32,7 +38,7 @@ class RangePlayer(arcade.Sprite):
 
         self.arrow_list.append(arrow)
 
-        hit = HitBox("images/fire.png")
+        hit = constants.HitBox("images/fire.png")
         hit._set_alpha(0)
         hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
         hit._set_width(ARROW_IMAGE_HEIGHT)
@@ -40,7 +46,7 @@ class RangePlayer(arcade.Sprite):
         hit.center_x = self.center_x + -math.sin(math.radians(hit.angle)) * hit.height/2
         hit.center_y = self.center_y + math.cos(math.radians(hit.angle)) * hit.height/2
         hit.vel = ARROW_SPEED
-        hit.box = BOX
+        hit.box = constants.BOX
         arrow.hit = hit
         self.hitbox_list.append(hit)
 

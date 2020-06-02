@@ -1,19 +1,22 @@
-import sys
-import csv 
+import csv
 import arcade
 import numpy as np
-from util.constants import *
+
 import math
 import random
 import pickle
-import datetime
+
+from util import constants
+from util.constants import ARROW_SPEED, SCREEN_WIDTH, SCREEN_HEIGHT, \
+    ARROW_IMAGE_HEIGHT, BOX, PLAYER_HEALTH, \
+    MOVEMENT_SPEED
 
 DEBUG = False
 
 class GENN(arcade.Sprite):
 
     def shootarrow(self):
-      arrow = Arrow("images/arrow.png",.1)
+      arrow = constants.Arrow("images/arrow.png",.1)
       arrow.center_x = self.center_x
       arrow.center_y = self.center_y
       arrow.start_x = self.center_x # for tracking 
@@ -26,7 +29,7 @@ class GENN(arcade.Sprite):
 
       self.arrow_list.append(arrow)
 
-      hit = HitBox("images/fire.png")
+      hit = constants.HitBox("images/fire.png")
       hit._set_alpha(0)
       hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
       hit._set_width(ARROW_IMAGE_HEIGHT)
@@ -40,8 +43,9 @@ class GENN(arcade.Sprite):
     def equipshield(self):
       self.health += PLAYER_HEALTH*.5
       self.shield +=1
+
     def throwfire(self):
-      fireball = Fireball("images/fire.png", .1)
+      fireball = constants.Fireball("images/fire.png", .1)
       fireball.center_x = self.center_x
       fireball.center_y = self.center_y
       fireball.start_x = self.center_x # for tracking 
@@ -53,7 +57,7 @@ class GENN(arcade.Sprite):
       fireball.box = BOX
       self.fireball_list.append(fireball)
 
-      hit = HitBox("images/fire.png")
+      hit = constants.HitBox("images/fire.png")
       hit._set_alpha(0)
       hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
       hit._set_width(ARROW_IMAGE_HEIGHT)
@@ -67,7 +71,7 @@ class GENN(arcade.Sprite):
       self.hitbox_list.append(hit)
 
     def shortattack(self):
-      knife = Knife("images/knife.png",.1)
+      knife = constants.Knife("images/knife.png",.1)
       knife.center_x = self.center_x
       knife.center_y = self.center_y
       knife.angle = self.angle-180
@@ -80,6 +84,7 @@ class GENN(arcade.Sprite):
          wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
          for i in range(2):
             wr.writerow(self.weights[i])
+
     def readWeights(self,path = None):
      tempWeights = [[],[]] 
      if path == None:
@@ -99,6 +104,7 @@ class GENN(arcade.Sprite):
             for row in reader:
                self.weights[weightType] = [float(i) for i in row]
                weightType +=1
+
     def update(self):
       self.curtime += 1
       if len(self.opponent_hitbox_list) >= 3:
