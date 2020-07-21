@@ -4,7 +4,7 @@
 *.pyc
 *.out
 __pycache__/
-
+*.csv
 DynamicController/__pycache__/DynamicController.cpython-36.pyc
 FSMPlayers/__pycache__/HumanPlayer.cpython-36.pyc
 FSMPlayers/__pycache__/MidRangePlayer.cpython-36.pyc

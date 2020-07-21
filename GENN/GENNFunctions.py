@@ -117,11 +117,19 @@ def writeNetworks(nets,adaptive = False):
     else:
         filename = "Genn/adaptiveWeights"
     for i in range(len(nets)):
+<<<<<<< HEAD
+        with open("GENN/weights" + str(i) + ".csv",'w') as myfile:
+=======
         with open(filename + str(i) + ".csv",'w') as myfile:
+>>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
             wr = csv.writer(myfile, quoting = csv.QUOTE_ALL) 
             for j in range(len(nets[i].layers)):
                 wr.writerow(nets[i].layers[j].weights)
 
+<<<<<<< HEAD
+def readNets(nets):
+    with open("GENN/masterWeights/weights.csv") as csvfile:
+=======
 def readNets(nets, adaptive = False):
     if adaptive:
         filename = "Genn/masterWeightsAdaptive/weights.csv"
@@ -129,6 +137,7 @@ def readNets(nets, adaptive = False):
         filename = "Genn/masterWeights/weights.csv"
         
     with open(filename) as csvfile:
+>>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
         reader = csv.reader(csvfile)
         layers = []
         for row in reader:
