@@ -5,6 +5,11 @@ import numpy as np
 from util.constants import *
 import math
 import random
+import pickle
+import datetime
+
+DEBUG = False
+
 class GENN(arcade.Sprite):
 
     def shootarrow(self):
@@ -124,8 +129,45 @@ class GENN(arcade.Sprite):
         opp_proj_2_y = 0
         opp_proj_3_x = 0
         opp_proj_3_y = 0
-      inputs = [[self.center_x,self.center_y,self.opponent.center_x,self.opponent.center_x,self.health,self.opponent.health,self.total_time,self.shield,self.opponent.shield,self.curtime,len(self.opponent_hitbox_list), opp_proj_1_x, opp_proj_1_y, opp_proj_2_x, opp_proj_2_y, opp_proj_3_x, opp_proj_3_y]]
-      choices = self.model.predict(np.asarray(inputs))
+      inputs = [[self.center_x/1000,  #divide by 1000 to rescale to 0-1 like the other inputs
+                 self.center_y/1000,
+                 self.opponent.center_x/1000,
+                 self.opponent.center_x/1000,
+                 self.health/1000,
+                 self.opponent.health/1000,
+                 self.total_time,
+                 self.shield,
+                 self.opponent.shield,self.curtime,len(self.opponent_hitbox_list), opp_proj_1_x, opp_proj_1_y, opp_proj_2_x, opp_proj_2_y, opp_proj_3_x, opp_proj_3_y]]
+      choices = self.model.predict(np.asarray(inputs), verbose = 0)
+      
+      #JTW check whether network is adaptive.
+      #Adaptive networks return 6 additional targets
+      
+      if len(choices)>5:
+          
+          target = {'move_x':np.full([1,1],choices[5][0][0]),
+                    'move_y':np.full([1,1],choices[5][0][1]),
+                    'shoot1':np.full([1,1],choices[5][0][2]/2+0.5),
+                    'shoot2':np.full([1,1],choices[5][0][3]/2+0.5),
+                    'shoot3':np.full([1,1],choices[5][0][4]/2+0.5),
+                    'adaptive_targets':np.expand_dims(np.asarray(choices[5][0]),0)}
+          
+          weight = {'move_x':np.full([1],(choices[5][0][5]+1)/2),
+                    'move_y':np.full([1],(choices[5][0][5]+1)/2),
+                    'shoot1':np.full([1],(choices[5][0][5]+1)/2),
+                    'shoot2':np.full([1],(choices[5][0][5]+1)/2),
+                    'shoot3':np.full([1],(choices[5][0][5]+1)/2)}
+          
+          if DEBUG:
+              with open('debug_dump.p','wb') as f:
+                  pickle.dump([choices,inputs,target,weight],f)
+          try:        
+              self.model.fit(x={'inputs':np.asarray(inputs)}, y=target, batch_size = 1, 
+                            sample_weight = weight,verbose = 0)
+          except:
+              print('AGENN model failed to run model-fit')
+          
+          
       self.center_x += MOVEMENT_SPEED * choices[0][0][0]
       self.center_y += MOVEMENT_SPEED * choices[1][0][0]
 
