@@ -23,11 +23,12 @@ import json
 import matplotlib.pyplot as plt
 import pandas as pd
 from datetime import datetime
+from GENN.GENNFunctions import *
 
 random.seed(RANDOM_SEED)
 
 class Game:
-    def __init__(self,width , height, title, iterations, player_1_type, player_2_type,conGames,currentGame,player_1_nets,player_2_nets,trendTracking,
+    def __init__(self,width , height, title, games, player_1_type, player_2_type,conGames,rounds,player_1_nets,player_2_nets,trendTracking,
                  player_1_simulation, player_2_simulation, process_id):
         """
         Initializer
@@ -46,15 +47,15 @@ class Game:
 
         self.trendTracking = trendTracking
         self.start = time.time()
-        self.totalIterations = iterations
-        self.iterations = iterations
+        self.totalGames = games
+        self.games = games
         self.player1_type = player_1_type.lower()
         self.player2_type = player_2_type.lower()
         self.player1_score = 0
         self.player2_score = 0
         self.draws = 0
         self.conGames = conGames
-        self.currentGame = currentGame
+        self.rounds = rounds
         self.process_id = process_id
         self.player_1_nets = player_1_nets
         self.player_2_nets = player_2_nets
@@ -63,6 +64,8 @@ class Game:
         self.player2_previous_health = PLAYER_HEALTH
         self.player_1_simulation = player_1_simulation
         self.player_2_simulation = player_2_simulation
+        
+        print("Game Initialized for process ID/network: ",str(self.process_id))
 
     def jitter(self):
         self.player1.center_x = random.randint(0,SCREEN_WIDTH)
@@ -113,7 +116,7 @@ class Game:
             self.process_id,
             self.player1_type,
             self.player_1_simulation,
-            self.currentGame,
+            self.rounds,
             self.healthChanges,
         )
 
@@ -130,12 +133,12 @@ class Game:
             self.process_id,
             self.player2_type,
             self.player_2_simulation,
-            self.currentGame,
+            self.rounds,
             self.healthChanges,
         )
 
 
-        if self.written == 0 and self.iterations == self.totalIterations:
+        if self.written == 0 and self.games == self.totalGames:
             with open("player1Trends.txt",'w+') as myfile:
                 myfile.write(json.dumps(self.player1.trends))
                 myfile.close()
@@ -152,6 +155,7 @@ class Game:
         self.written += 1    
         self.player1.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
         self.player2.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
+    
     def setup(self):
         self.player_list = []
         self.arrow_list = []
@@ -172,7 +176,7 @@ class Game:
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = None
-            if self.currentGame == 0:
+            if self.rounds == 0:
                 self.player1.adjustingWeight = 0
                 self.player1.weights = [[],[]]
                 self.player1.readWeights("DynamicController/masterWeights.csv")
@@ -182,7 +186,7 @@ class Game:
                 self.player1.moverule = None
                 chooseWeight(self.player1)
             else:
-                self.player1.adjustingWeight = self.totalIterations - self.iterations
+                self.player1.adjustingWeight = self.totalGames - self.games
                 self.player1.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
                 self.player1.benchmarkDifference = 0
                 self.player1.weights = [[],[]]
@@ -194,7 +198,7 @@ class Game:
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'both'
-            if self.currentGame == 0:
+            if self.rounds == 0:
                 self.player1.weights = [[],[]]
                 self.player1.readWeights("DynamicController/masterWeights.csv")
                 self.player1.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
@@ -214,7 +218,7 @@ class Game:
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'both'
-            if self.currentGame == 0:
+            if self.rounds == 0:
                 shootWeights = [1/21] * 21
                 moveWeights = [1/7] * 14 + [1/2] * 6
                 self.player1.weights = [shootWeights,moveWeights]
@@ -236,10 +240,10 @@ class Game:
             self.player1.id = "player1"
             self.player1.adjusting = 'shoot'
             if self.player1.adjusting == 'shoot':
-                self.player1.adjustingWeight = abs(self.iterations) % 21 
+                self.player1.adjustingWeight = abs(self.games) % 21 
             elif self.player1.adjusting == 'move':
-                self.player1.adjustingWeight = abs(self.iterations) % 20
-            if self.currentGame == 0:
+                self.player1.adjustingWeight = abs(self.games) % 20
+            if self.rounds == 0:
                 shootWeights = [0.349706412,0.003654498,0.007241115,0.007261579,0.056467904,0.014784824,0.07526815 ,0.008607914,0.009829359,0.025498057,0.007078288,0.006121223,0.023625114,0.013999045,0.01048127 ,0.010960692,0.009995443,0.009819444,0.00860488 ,0.011003079,0.329991729]#[1/21] * 21
                 moveWeights = [0.252059263 ,0.412954499,0.063124614,0.091279546,0.107225891,0.017778723,0.055577464,0.124954272,0.141280095,0.131862092,0.050910787,0.083675091,0.16745422 ,0.299863443,0.087444364,0.912555636,0.642013021,0.357986979,0.463211574,0.536788426]#[1/7] * 14 + [1/2] * 6
                 self.player1.weights = [shootWeights,moveWeights]
@@ -294,7 +298,7 @@ class Game:
             self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player2.id = "player2"
             self.player2.adjusting = None
-            if self.currentGame == 0:
+            if self.rounds == 0:
                 self.player2.adjustingWeight = 0
                 self.player2.weights = [[],[]]
                 self.player2.readWeights("DynamicController/masterWeights.csv")
@@ -304,7 +308,7 @@ class Game:
                 self.player2.moverule = None
                 chooseWeight(self.player2)
             else:
-                self.player2.adjustingWeight = self.totalIterations - self.iterations
+                self.player2.adjustingWeight = self.totalGames - self.games
                 self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
                 self.player2.benchmarkDifference = 0
                 self.player2.weights = [[],[]]
@@ -316,7 +320,7 @@ class Game:
             self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player2.id = "player2"
             self.player2.adjusting = 'both'
-            if self.currentGame == 0:
+            if self.rounds == 0:
                 self.player2.weights = [[],[]]
                 self.player2.readWeights("DynamicController/masterWeights.csv")
                 self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
@@ -336,7 +340,7 @@ class Game:
             self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player2.id = "player2"
             self.player2.adjusting = 'both'
-            if self.currentGame == 0:
+            if self.rounds == 0:
                 self.player2.adjustingWeight = 0
                 shootWeights = [1/21] * 21
                 moveWeights = [1/7] * 14 + [1/2] * 6
@@ -347,7 +351,7 @@ class Game:
                 self.player2.moverule = None
                 chooseWeight(self.player2)
             else:
-                self.player2.adjustingWeight = self.totalIterations - self.iterations
+                self.player2.adjustingWeight = self.totalGames - self.games
                 self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
                 self.player2.benchmarkDifference = 0
                 self.player2.weights = [[],[]]
@@ -382,12 +386,18 @@ class Game:
         self.player2.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
         self.player2.lastMovement = ""
         self.player2.currentTrend = 0
+        
+        
+        print("Game setup complete for Process ID/Network: ",str(self.process_id))
 
     def end_game(self):
         self.player1_score += self.player1.score
         self.player2_score += self.player2.score
-        self.iterations -= 1
-
+        self.games -= 1
+        
+        if self.games > 6: self.player2_type = 'short'
+        elif self.games < 6 and self.games >3: self.player2_type = 'mid'
+        else: self.player2_type = 'range'
 
     def init_player(self):
         
@@ -440,7 +450,7 @@ class Game:
         return False
     
     
-    def update(self, game_move):
+    def update(self, game_move, prev_health_differ):
         
         # Attack Data Holder
         player1_fireball = 0
@@ -460,9 +470,11 @@ class Game:
         if self.trendTracking == 'yes': 
             if self.curtime % 900 == 0: self.writeTrends()
 
-        if self.curtime % 1000 == 0:  ## added intermittent updates instead of every move - every 1000 moves
+        if self.curtime % 250 == 0:  ## added intermittent updates instead of every move - every 1000 moves
             print("Player 1 Health: ", str(self.player1.health))
             print("Player 2 Health: ", str(self.player2.health))
+            print("Player Round: ", str(self.rounds))
+            print("Game left: " + str(self.games) + " in Process ID/Network: " + str(self.process_id))
 
         # player 1 collision
         if self.player1.center_y >= self.height:
@@ -572,19 +584,24 @@ class Game:
                 
             self.player2.knife_list.remove(self.knife)
 
-
         
+        current_health_differ = self.player1.health - self.player2.health
+        if game_move%1000 == 0 and prev_health_differ <= current_health_differ:
+            self.player1.net = createChildNets(self.player1.net, 1)
+            self.player1.net = mutateNets(self.player1.net)[0]
+            self.player1.model =  self.player1.net.createNetwork()
            
+        
         
         #Print The Log Result
         progress_data = dict(
-            iterations = [self.iterations],
+            games = [self.games],
             player_1_type = [self.player1_type],
             player_2_type = [self.player2_type],
             conCurrentGames = [self.conGames],
             player_1_simulation = [self.player_1_simulation],
             player_2_simulation = [self.player_2_simulation],
-            currentGame = [self.currentGame],
+            rounds = [self.rounds],
             process_id = [self.process_id],
             player1_center_x = [self.player1.center_x],
             player_1_center_y = [self.player1.center_y],
@@ -592,8 +609,8 @@ class Game:
             player2_center_x = [self.player2.center_x],
             player_2_center_y = [self.player2.center_y],
             player2_shield = [self.player2.shield],
-            player1_score = [self.player1.score],
-            player2_score = [self.player2.score],
+            player1_score = [self.player1_score],
+            player2_score = [self.player2_score],
             player1_fireball = [player1_fireball],
             player2_fireball = [player2_fireball],
             player1_arrow = [player1_arrow],
@@ -607,38 +624,41 @@ class Game:
         )
         
         dataFrame = pd.DataFrame(progress_data)
-
-        if os.path.exists("data_log.csv"):
-            dataFrame.to_csv(str("data_log.csv"), mode='a', header=False, index=False)
+        
+        file_name = "data_log.csv"
+        
+        if os.path.exists(file_name):
+            dataFrame.to_csv(file_name, mode='a', header=False, index=False)
 
         else:
-            dataFrame.to_csv(str("data_log.csv"), mode='w', header=True, index=False)
+            dataFrame.to_csv(file_name, mode='w', header=True, index=False)
+        
         
         # If health is zero kill them
         if self.player1.health <= 0 and self.player2.health <= 0:
             self.draws += 1
             self.end_game()
-            if self.iterations == 0: return "0"
+            if self.games == 0: return "0"
             else: self.setup()
         elif self.player2.health <= 0:
             self.player1.score += 1 
             self.end_game()
             if self.player1.shield == 0:
-                if self.iterations == 0: return self.player1.health - self.player2.health + 500
+                if self.games == 0: return self.player1.health - self.player2.health + 500
                 else: self.setup()
             else:
-                if self.iterations == 0: return self.player1.health - self.player2.health
+                if self.games == 0: return self.player1.health - self.player2.health
                 else: self.setup()
         elif self.player1.health <= 0:
             self.player2.score += 1 
             self.end_game()
             if self.player2.shield == 0:
-                if self.iterations == 0: 
+                if self.games == 0: 
                     self.writeTrends()
                     return self.player1.health - self.player2.health - 500
                 else: self.setup()
             else:
-                if self.iterations == 0: 
+                if self.games == 0: 
                     self.writeTrends()
                     return self.player1.health - self.player2.health
                 else: self.setup()
@@ -649,7 +669,7 @@ class Game:
             self.healthChanges = 0
         self.player1_previous_health = self.player1.health
         self.player2_previous_health = self.player2.health
-        return True
+        return [True, self.player1.health - self.player2.health]
         
 =======
 
