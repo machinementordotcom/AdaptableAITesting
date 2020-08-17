@@ -4,7 +4,7 @@ from util.constants import *
 import csv
 import ast
 
-def createNets(conCurrentGame):
+def createNets(conCurrentGame, adaptive = False):
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -26,10 +26,13 @@ def createNets(conCurrentGame):
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        nets.append(Network(layers))
+        if adaptive == True: #JTW modified to optionally allow creating adaptive network which adjusts its own weights
+            nets.append(AdaptiveNetwork(layers))
+        else:
+            nets.append(Network(layers))
     return nets
 
-def createNet(specificLayers = None,specificNodes = None):
+def createNet(specificLayers = None,specificNodes = None, adaptive = False):
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -51,9 +54,12 @@ def createNet(specificLayers = None,specificNodes = None):
     layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
     layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
     layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    return Network(layers)
+    if adaptive == True:  #JTW modified to optionally allow creating adaptive network which adjusts its own weights
+        return AdaptiveNetwork(layers)
+    else:
+        return Network(layers)
 
-def createChildNets(parents,number):
+def createChildNets(parents,number, adaptive = False):
     return createNets(number)
     newNets = []
     inputsNum = 17
@@ -76,7 +82,10 @@ def createChildNets(parents,number):
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        newNets.append(Network(layers))
+        if adaptive:
+            newNets.append(AdaptiveNetwork(layers))
+        else:
+            newNets.append(Network(layers))
     return newNets
 
 def countBits(n):
@@ -90,7 +99,7 @@ def countBits(n):
 def toggleKthBit(n, k): 
     return (n ^ (1 << (k-1))) 
 
-def mutateNets(nets):
+def mutateNets(nets, adaptive =False):
     newNetsIndex = np.random.randint(0,len(nets),int(len(nets)*.1))
     for i in newNetsIndex:
         current = nets[i]
@@ -99,19 +108,36 @@ def mutateNets(nets):
         for i in range(num):
             if random.uniform(0, 1) < (1/num):
                 currentLayers = toggleKthBit(currentLayers,i)
-        nets[i] = createNet(specificLayers = currentLayers)
+        nets[i] = createNet(specificLayers = currentLayers, adaptive=adaptive)
     return nets
 
-def writeNetworks(nets):
-
+def writeNetworks(nets,adaptive = False):
+    if adaptive:
+        filename = "Genn/weights"
+    else:
+        filename = "Genn/adaptiveWeights"
     for i in range(len(nets)):
+<<<<<<< HEAD
         with open("GENN/weights" + str(i) + ".csv",'w') as myfile:
+=======
+        with open(filename + str(i) + ".csv",'w') as myfile:
+>>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
             wr = csv.writer(myfile, quoting = csv.QUOTE_ALL) 
             for j in range(len(nets[i].layers)):
                 wr.writerow(nets[i].layers[j].weights)
 
+<<<<<<< HEAD
 def readNets(nets):
     with open("GENN/masterWeights/weights.csv") as csvfile:
+=======
+def readNets(nets, adaptive = False):
+    if adaptive:
+        filename = "Genn/masterWeightsAdaptive/weights.csv"
+    else:
+        filename = "Genn/masterWeights/weights.csv"
+        
+    with open(filename) as csvfile:
+>>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
         reader = csv.reader(csvfile)
         layers = []
         for row in reader:
@@ -119,6 +145,9 @@ def readNets(nets):
             for j in row:
                 temp.append(ast.literal_eval(j))
             layers.append(Layer(temp))
-        return [Network(layers)] * nets  
+        if adaptive:
+            return[AdaptiveNetwork(layers)] * nets 
+        else:
+            return [Network(layers)] * nets  
 
 
