@@ -111,9 +111,6 @@ def mutateNets(nets, adaptive =False):
         nets[i] = createNet(specificLayers = currentLayers, adaptive=adaptive)
     return nets
 
-def writeNetworks(nets,adaptive = False):
-    for i in range(len(nets)):
-        with open("GENN/weights" + str(i) + ".csv",'w') as myfile:
 def writeNetworks(nets):
     for i in range(len(nets)):
         with open("GENN/weights" + str(i) + ".csv",'w') as myfile:
