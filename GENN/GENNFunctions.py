@@ -112,32 +112,17 @@ def mutateNets(nets, adaptive =False):
     return nets
 
 def writeNetworks(nets,adaptive = False):
-    if adaptive:
-        filename = "Genn/weights"
-    else:
-        filename = "Genn/adaptiveWeights"
     for i in range(len(nets)):
-<<<<<<< HEAD
         with open("GENN/weights" + str(i) + ".csv",'w') as myfile:
-=======
-        with open(filename + str(i) + ".csv",'w') as myfile:
->>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
+def writeNetworks(nets):
+    for i in range(len(nets)):
+        with open("GENN/weights" + str(i) + ".csv",'w') as myfile:
             wr = csv.writer(myfile, quoting = csv.QUOTE_ALL) 
             for j in range(len(nets[i].layers)):
                 wr.writerow(nets[i].layers[j].weights)
 
-<<<<<<< HEAD
 def readNets(nets):
     with open("GENN/masterWeights/weights.csv") as csvfile:
-=======
-def readNets(nets, adaptive = False):
-    if adaptive:
-        filename = "Genn/masterWeightsAdaptive/weights.csv"
-    else:
-        filename = "Genn/masterWeights/weights.csv"
-        
-    with open(filename) as csvfile:
->>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
         reader = csv.reader(csvfile)
         layers = []
         for row in reader:
@@ -145,9 +130,5 @@ def readNets(nets, adaptive = False):
             for j in row:
                 temp.append(ast.literal_eval(j))
             layers.append(Layer(temp))
-        if adaptive:
-            return[AdaptiveNetwork(layers)] * nets 
-        else:
-            return [Network(layers)] * nets  
-
+        return [Network(layers)] * nets  
 
