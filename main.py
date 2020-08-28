@@ -23,19 +23,16 @@ import matplotlib.ticker as ticker
 
 def runOneGame(a):
 
+    max_moves = 1000
     print("runOneGame commencing")
     x = Game(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11],a[12],a[13])
     print("setting up players")
     x.setup()
-    
     val = True
-    print("val set to True")
     print("Game Play Started...")
-    
     while val == True:
-        val = x.update()
-    return val
-    
+        val = x.update(max_moves)
+    return val    
     print('runOneGame OVER') 
 
 """
@@ -99,9 +96,9 @@ def main(args):
 
     if train == 'yes':
         # Game/Network will be played in the same time per generation
-        conCurrentGame = 8
+        conCurrentGame = 10
         # Total Generation 
-        generations = 9
+        generations = 111
         simulation_player_1 = 'genn'
         simulation_player_2 = 'fsm'
         player_2_type = 'range'
@@ -111,6 +108,7 @@ def main(args):
         graphOutput = 'no'
         games_per_network = 9
         train = 'yes'
+        pools = 10
         
         print("All variables are set")
     else:
@@ -182,21 +180,26 @@ def main(args):
 
         for rounds in range(generations):
 #            spacer()
-            print("Total rounds %d out of %d" % (rounds + 1, generations))
+            print("Total rounds %d out of %d" % (rounds, generations))
             print("Player1 Nets length:", str(len(player_1_nets)))
             print(player_1_nets)
             
             if evolutions == True and train == 'yes':
                 if player_1_type in ['genn','agenn']: # NH - added agenn to ensure evolution will take place with agenn as with genn
                     #if rounds % 9 == 0 and rounds != 0:
-                    if rounds != 0: # NH - mutation should happen at the beginning of every generation after 0
-                        print(evolutionHealth)
+                    if rounds != 0: # NH - mutation should happen at the beginning of every generation after 1
+                        print("evolutionHealth:",str(evolutionHealth))
                         bestIndexs = sorted(range(len(evolutionHealth)), key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.2//1):]
+                        print("bestIndexs:",str(bestIndexs))
                         evolutionHealth = []
                         newNets = list(itemgetter(*bestIndexs)(player_1_nets))
-                        temp = createChildNets(newNets,conCurrentGame - len(newNets))
+                        print("These are the new Nets:",str(newNets))
+                        temp = createNets(conCurrentGame - len(newNets)) # NH - replaced createChildNets with createNets
+                        print("These are the temp nets:",str(temp))
                         player_1_nets = newNets + temp
+                        print("These are player_1_nets:",str(player_1_nets))
                         player_1_nets = mutateNets(player_1_nets)
+                        print("And these are the mutated nets:",str(player_1_nets))
                         
                 if player_2_type == 'genn':
                     #if rounds % 9 == 0 and rounds != 0:
@@ -204,16 +207,16 @@ def main(args):
                         bestIndexs = sorted(range(len(evolutionHealth)), key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.2//1):]
                         evolutionHealth = []
                         newNets = list(itemgetter(*bestIndexs)(player_2_nets))
-                        temp = createChildNets(newNets,conCurrentGame - len(newNets))
+                        temp = createNets(conCurrentGame - len(newNets)) # NH - replaced createChildNets with createNets
                         player_2_nets = newNets + temp
                         player_2_nets = mutateNets(player_2_nets)
             
 #            pools = max(conCurrentGame,os.cpu_count()*4) # NH - need to create enough processes or threads to keep CPU busy
-            pools = 8 # NH - testing for best ratio of processes to games
+#            pools = 4 # NH - testing for best ratio of processes to games
             
             print("Creating",pools,"process or thread pools")
             ex = concurrent.futures.ProcessPoolExecutor(max_workers=pools)  
-            
+#            ex = multiprocessing.Pool(pools) 
             """
             if train == 'yes':
                 if rounds % 9 < 3: player_2_type = 'short'
@@ -225,14 +228,15 @@ def main(args):
                                                              [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,
                                                              games_per_network,player_1_type,player_2_type,
                                                              conCurrentGame,rounds,player_1_nets,
-                                                             player_2_nets, trendTracking,
-                                                             simulation_player_1,simulation_player_2]] *conCurrentGame  ],1) ])
+                                                             player_2_nets,trendTracking,
+                                                             simulation_player_1,simulation_player_2]] *conCurrentGame  ],1) ]) #chunksize
             
-            """
-            if rounds != 0: evolutionHealth = [float(i) for i in result]
-            else: evolutionHealth = list(map(add, [float(i) for i in result], evolutionHealth)) 
-            """       
+            print("Result:",result)
+            
             evolutionHealth = [float(i) for i in result]
+#            else: evolutionHealth = list(map(add, [float(i) for i in result], evolutionHealth)) 
+                   
+#            evolutionHealth = [float(i) for i in result]
             player1Wins += sum(int(i) > 0 for i in [int(i) for i in result]) 
             player2Wins += sum(int(i) < 0 for i in [int(i) for i in result])
             """
@@ -244,8 +248,8 @@ def main(args):
             draws += sum(int(i) == 0 for i in [int(i) for i in result])  
             leftOverHealth += sum([float(i) for i in result])
 
-#            p.close()  #NH - not needed due to using futures.concurrent for multiprocessing
-#            p.join()
+#            ex.close()  #NH - not needed if using futures.concurrent for multiprocessing
+#            ex.join()
 
         if player_1_type is 'genn' or player_1_type is 'agenn':
             writeNetworks(player_1_nets)

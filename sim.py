@@ -64,6 +64,7 @@ class Game:
         self.player_2_simulation = player_2_simulation
         self.start = 0 # NH - for calculation of CPU move time
         self.end = 0
+        self.health_diff = 0
         
         print("Game Initialized for process ID/network: ",str(self.process_id))
 
@@ -73,7 +74,7 @@ class Game:
         self.player2.center_x = random.randint(0,SCREEN_WIDTH)
         self.player2.center_y = random.randint(0,SCREEN_HEIGHT)
 
-    """
+
     def write_csv(self, filename, arrow, fire, knife, towardsOpponent, awayOpponent,
                   movementChanges, biggestTrend,
                   concurrent_game_id, player_type, player_simulation,
@@ -156,7 +157,6 @@ class Game:
         self.written += 1    
         self.player1.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
         self.player2.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
-    """
 
     def setup(self):
         
@@ -166,11 +166,11 @@ class Game:
         self.fireball_list = []
         self.knife_list = []
         self.curtime = 0
-        print("Move",str(self.curtime))
-        # self.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
+#        print("Move",str(self.curtime))
+#        self.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
 
         # Set up player1
-        print("Setting up player1 as",self.player1_type,self.player2_type)
+        print("Setting up player1 as",self.player1_type,self.player_1_simulation)
         if self.player1_type.lower() == 'range':
             self.player1 = RangePlayer(KNIGHT_IMAGE,1)
         elif self.player1_type.lower() == 'mid':
@@ -291,9 +291,10 @@ class Game:
         self.player1.lastMovement = ""        
         self.player1.currentTrend = 0
         self.player1.version = 1
+        self.player1.health_diff = 0
 
         # Set up bad guy
-        print("Setting up player2")
+        print("Setting up player2 as",self.player2_type,self.player_2_simulation)
         if self.player2_type.lower() == 'range':
             self.player2 = RangePlayer(KNIGHT_IMAGE,1)
         elif self.player2_type.lower() == 'mid':
@@ -365,7 +366,7 @@ class Game:
                 self.player2.weights = [[],[]]
                 self.player2.readWeights()
                 chooseWeight(self.player2)
-        elif self.player2_type is 'genn' or self.player2_type is 'agenn':
+        elif self.player2_type is 'genn':
             self.player2 = GENN(KNIGHT_IMAGE,1)
             self.player2.net = self.player_2_nets[self.process_id]
             self.player2.model =  self.player2.net.createNetwork()
@@ -399,11 +400,16 @@ class Game:
     
     def end_game(self):
             
-        print('Running end_game')
+#        print('Running end_game')
         
         self.player1_score += self.player1.score
         self.player2_score += self.player2.score
-        self.games -= 1
+                
+        if self.games > 0: 
+            self.games -= 1
+            
+        print("Player",str(self.process_id),"game over.",str(self.games),"games left")
+        
        
         # NH - reversed order of games to front load longer-lasting 'range' games
         if self.games > 6: self.player2_type = 'range'
@@ -411,21 +417,27 @@ class Game:
         elif self.games <= 3 and self.games > 0: self.player2_type = 'short'
             
         # NH - added this here, as it seems more fitting to have it here
-        if self.games == 0: 
-            print("Round over, calculating final health")
-            if self.player2.health <= 0:
-                if self.player1.shield == 0:
-                    return self.player1.health - self.player2.health + 500
-                else:
-                    return self.player1.health - self.player2.health
-            elif self.player1.health <=0:
-                if self.player2.shield == 0:
-                    return self.player1.health - self.player2.health - 500
-            else: 
-                return self.player1.health - self.player2.health
+     
+        if self.player1.health <=0 and self.player2.health <=0:
+            self.player1.health_diff = 0
             
-        else: self.setup()                             
+        elif self.player2.health <= 0 and self.player1.shield == 0:
+                self.player1.health_diff = self.player1.health - self.player2.health + 500
+            
+        elif self.player1.health <=0 and self.player2.shield == 0:
+                self.player1.health_diff = self.player1.health - self.player2.health - 500
+        else:
+            self.player1.health_diff = self.player1.health - self.player2.health
+            self.health_diff += self.player1.health_diff
 
+        if self.games == 0: 
+            print("Round over for player",str(self.process_id),", calculating final health")
+            return self.health_diff
+        
+        else: 
+            self.setup()
+            return True
+        
     def init_player(self):
         print('Running init_player')
         self.grid[self.player1.center_y][self.player1.center_x] = 1
@@ -476,7 +488,7 @@ class Game:
             return True
         return False
     
-    def update(self):
+    def update(self, max_moves):
 #        print("Main update running, move",str(self.curtime))
 
         # Attack Data Holder
@@ -486,6 +498,9 @@ class Game:
         player2_arrow = 0
         player1_knife = 0
         player2_knife = 0
+        val = True
+#        print("Maximum",str(max_moves),"allowed")
+        
 #        game_not_over = True # This variable is returned as False when game is over
                 
         # sets a timer that game and perspective players use
@@ -643,15 +658,15 @@ class Game:
            """                
 	#Print The Log Result
         progress_data = dict(
-		games = [self.games],
+        	games = [self.games],
         	player_1_type = [self.player1_type],
         	player_2_type = [self.player2_type],
-#        	conCurrentGames = [self.conGames],
-#        	player_1_simulation = [self.player_1_simulation],
-#        	player_2_simulation = [self.player_2_simulation],
+        	conCurrentGames = [self.conGames],
+        	player_1_simulation = [self.player_1_simulation],
+        	player_2_simulation = [self.player_2_simulation],
         	rounds = [self.rounds],
         	process_id = [self.process_id],
-        	agenn_v = [self.player1.version],
+#        	agenn_v = [self.player1.version],
 #        	player1_center_x = [self.player1.center_x],
 #        	player_1_center_y = [self.player1.center_y],
         	player1_shield = [self.player1.shield],
@@ -660,22 +675,22 @@ class Game:
         	player2_shield = [self.player2.shield],
         	player1_score = [self.player1_score],
         	player2_score = [self.player2_score],
-        	player1_fireball = [player1_fireball],
-        	player2_fireball = [player2_fireball],
-        	player1_arrow = [player1_arrow],
-        	player2_arrow = [player2_arrow],
-        	player1_knife = [player1_knife],
-        	player2_knife = [player2_knife],
+#        	player1_fireball = [player1_fireball],
+#        	player2_fireball = [player2_fireball],
+#        	player1_arrow = [player1_arrow],
+#        	player2_arrow = [player2_arrow],
+#        	player1_knife = [player1_knife],
+#        	player2_knife = [player2_knife],
         	game_move = [self.curtime], 
-        	player1_health = [self.player1.health],
-        	player2_health = [self.player2.health],
-        	health_diff = [self.player1.health - self.player2.health],
+#        	player1_health = [self.player1.health],
+#        	player2_health = [self.player2.health],
+        	health_diff = [self.player1.health - self.player2.health], # NH - replaced separate health points above
         	timestamp = [datetime.now()],
         )
         
         ## NH made reporting less frequent for performance reasons
         
-        if self.curtime % 1 == 0:
+        if self.curtime % 10 == 0:
             dataFrame = pd.DataFrame(progress_data)
             file_name = "data_log.csv"
 #            print("Writing data log")
@@ -692,33 +707,40 @@ class Game:
 #        print("Checking for game over state.\n\nself.curtime is",str(self.curtime),
 #             "and",str(self.games),"games remain")
         
-        if self.curtime >= 10000:
-            print("Game has reached max moves")
+        if self.curtime >= max_moves:
+            print("Game has reached max moves of",str(max_moves))
             
             if self.player1.health == self.player2.health:
                 self.draws += 1
                 print("Game ends in a draw")
+                val = self.end_game()
+                
             elif self.player1.health > self.player2.health:
                 self.player1.score +=1
                 print("Player1 wins")
+                val = self.end_game()
+                
             else:
                 self.player2.score +=1
                 print("Player2 wins")
-            self.end_game()
-            
+                val = self.end_game()
+             
         elif self.player1.health <= 0 and self.player2.health <= 0:
             print("Both players are at zero health")
             self.draws += 1
             print("Game ends in a draw")
-            self.end_game()                      
+            val = self.end_game()
+                               
                 
         elif self.player2.health <= 0:
             self.player1.score += 1 
-            self.end_game()
+            val = self.end_game()
+            
             
         elif self.player1.health <= 0:
             self.player2.score += 1 
-            self.end_game()
+            val = self.end_game()
+           
                             
         if self.player1.health == self.player1_previous_health and self.player2_previous_health == self.player2.health: self.healthChanges += 1
         else: self.healthChanges = 0
@@ -726,8 +748,9 @@ class Game:
         if self.healthChanges > 1500: 
             self.jitter()
             self.healthChanges = 0
+            
         self.player1_previous_health = self.player1.health
         self.player2_previous_health = self.player2.health
         
-        return True
+        return val
         

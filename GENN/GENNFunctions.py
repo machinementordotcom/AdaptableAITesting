@@ -1,10 +1,11 @@
-import random 
+
+import random
 import numpy as np
 from util.constants import * 
 import csv
 import ast
 
-def createNets(conCurrentGame, adaptive = False):
+def createNets(conCurrentGame): # creates new network with randomized layers and nodes
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -26,13 +27,11 @@ def createNets(conCurrentGame, adaptive = False):
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        if adaptive == True: #JTW modified to optionally allow creating adaptive network which adjusts its own weights
-            nets.append(AdaptiveNetwork(layers))
-        else:
-            nets.append(Network(layers))
+        nets.append(Network(layers))
+    print("\ncreateNets has run with nets=\n",str(nets))
     return nets
 
-def createNet(specificLayers = None,specificNodes = None, adaptive = False):
+def createNet(specificLayers = None,specificNodes = None): # creates new net with option to specify number of layers and nodes
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -54,12 +53,23 @@ def createNet(specificLayers = None,specificNodes = None, adaptive = False):
     layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
     layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
     layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    if adaptive == True:  #JTW modified to optionally allow creating adaptive network which adjusts its own weights
-        return AdaptiveNetwork(layers)
-    else:
-        return Network(layers)
+    print("Network")
+    return Network(layers)
 
-def createChildNets(parents,number, adaptive = False):
+def countBits(n):
+  n = (n & 0x5555555555555555) + ((n & 0xAAAAAAAAAAAAAAAA) >> 1)
+  n = (n & 0x3333333333333333) + ((n & 0xCCCCCCCCCCCCCCCC) >> 2)
+  n = (n & 0x0F0F0F0F0F0F0F0F) + ((n & 0xF0F0F0F0F0F0F0F0) >> 4)
+  n = (n & 0x00FF00FF00FF00FF) + ((n & 0xFF00FF00FF00FF00) >> 8)
+  n = (n & 0x0000FFFF0000FFFF) + ((n & 0xFFFF0000FFFF0000) >> 16)
+  n = (n & 0x00000000FFFFFFFF) + ((n & 0xFFFFFFFF00000000) >> 32) # This last & isn't strictly necessary.
+  return n
+
+def toggleKthBit(n, k): 
+    return (n ^ (1 << (k-1))) 
+
+
+def createChildNets(parents,number): # no longer used
     return createNets(number)
     newNets = []
     inputsNum = 17
@@ -82,33 +92,20 @@ def createChildNets(parents,number, adaptive = False):
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        if adaptive:
-            newNets.append(AdaptiveNetwork(layers))
-        else:
-            newNets.append(Network(layers))
+        newNets.append(Network(layers))
     return newNets
 
-def countBits(n):
-  n = (n & 0x5555555555555555) + ((n & 0xAAAAAAAAAAAAAAAA) >> 1)
-  n = (n & 0x3333333333333333) + ((n & 0xCCCCCCCCCCCCCCCC) >> 2)
-  n = (n & 0x0F0F0F0F0F0F0F0F) + ((n & 0xF0F0F0F0F0F0F0F0) >> 4)
-  n = (n & 0x00FF00FF00FF00FF) + ((n & 0xFF00FF00FF00FF00) >> 8)
-  n = (n & 0x0000FFFF0000FFFF) + ((n & 0xFFFF0000FFFF0000) >> 16)
-  n = (n & 0x00000000FFFFFFFF) + ((n & 0xFFFFFFFF00000000) >> 32) # This last & isn't strictly necessary.
-  return n
-def toggleKthBit(n, k): 
-    return (n ^ (1 << (k-1))) 
-
-def mutateNets(nets, adaptive =False):
+def mutateNets(nets): # 
     newNetsIndex = np.random.randint(0,len(nets),int(len(nets)*.1))
+    print("created newNetsIndex:",str(newNetsIndex),"from nets:",str(nets))
     for i in newNetsIndex:
         current = nets[i]
         currentLayers = len(current.layers)
         num = countBits(currentLayers)
-        for i in range(num):
+        for i in range(1,num): # NH - added 1 to force range to start above zero
             if random.uniform(0, 1) < (1/num):
                 currentLayers = toggleKthBit(currentLayers,i)
-        nets[i] = createNet(specificLayers = currentLayers, adaptive=adaptive)
+        nets[i] = createNet(specificLayers = currentLayers)
     return nets
 
 def writeNetworks(nets):
@@ -128,4 +125,3 @@ def readNets(nets):
                 temp.append(ast.literal_eval(j))
             layers.append(Layer(temp))
         return [Network(layers)] * nets  
-
