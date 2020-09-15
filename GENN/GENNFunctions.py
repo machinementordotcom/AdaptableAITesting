@@ -1,10 +1,12 @@
-import random 
+
+import random
 import numpy as np
 from util.constants import * 
 import csv
 import ast
 
-def createNets(conCurrentGame, adaptive = False):
+def createNets(conCurrentGame): # creates new network with randomized layers and nodes
+
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -13,26 +15,20 @@ def createNets(conCurrentGame, adaptive = False):
     for i in range(conCurrentGame):
         layers = []
         totalLayers = random.randint(2, maxlayers)
-        totalNodes = np.random.randint(1,maxNodes,size=(1,totalLayers)).tolist()[0]
+        totalNodes = np.random.randint(inputsNum,maxNodes,size=(1,totalLayers)).tolist()[0]
         # Create every layer
         for j in range(totalLayers):
             if j == 0:
                 nodeWeights = np.random.rand(1,inputsNum,totalNodes[0]).tolist()[0]
             else:
-                nodeWeights = np.random.rand(1,totalNodes[j-1],totalNodes[j]).tolist()[0]
+                nodeWeights = np.random.rand(inputsNum,totalNodes[j-1],totalNodes[j]).tolist()[0]
             layers.append(Layer(nodeWeights))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        if adaptive == True: #JTW modified to optionally allow creating adaptive network which adjusts its own weights
-            nets.append(AdaptiveNetwork(layers))
-        else:
-            nets.append(Network(layers))
+        nets.append(Network(layers))
+    print("\ncreateNets has run with nets=\n",str(nets))
     return nets
 
-def createNet(specificLayers = None,specificNodes = None, adaptive = False):
+def createNet(specificLayers = None,specificNodes = None): # creates new net with option to specify number of layers and nodes
+    
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -49,18 +45,23 @@ def createNet(specificLayers = None,specificNodes = None, adaptive = False):
         else:
             nodeWeights = np.random.rand(1,totalNodes[j-1],totalNodes[j]).tolist()[0]
         layers.append(Layer(nodeWeights))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    if adaptive == True:  #JTW modified to optionally allow creating adaptive network which adjusts its own weights
-        return AdaptiveNetwork(layers)
-    else:
-        return Network(layers)
+    return Network(layers)
 
-def createChildNets(parents,number, adaptive = False):
-    return createNets(number)
+def countBits(n):
+  n = (n & 0x5555555555555555) + ((n & 0xAAAAAAAAAAAAAAAA) >> 1)
+  n = (n & 0x3333333333333333) + ((n & 0xCCCCCCCCCCCCCCCC) >> 2)
+  n = (n & 0x0F0F0F0F0F0F0F0F) + ((n & 0xF0F0F0F0F0F0F0F0) >> 4)
+  n = (n & 0x00FF00FF00FF00FF) + ((n & 0xFF00FF00FF00FF00) >> 8)
+  n = (n & 0x0000FFFF0000FFFF) + ((n & 0xFFFF0000FFFF0000) >> 16)
+  n = (n & 0x00000000FFFFFFFF) + ((n & 0xFFFFFFFF00000000) >> 32) # This last & isn't strictly necessary.
+  return n
+
+def toggleKthBit(n, k): 
+    return (n ^ (1 << (k-1))) 
+
+
+def createChildNets(parents,number): # no longer used
+
     newNets = []
     inputsNum = 17
     maxNodes = 100
@@ -82,62 +83,36 @@ def createChildNets(parents,number, adaptive = False):
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        if adaptive:
-            newNets.append(AdaptiveNetwork(layers))
-        else:
-            newNets.append(Network(layers))
+        newNets.append(Network(layers))
     return newNets
 
-def countBits(n):
-  n = (n & 0x5555555555555555) + ((n & 0xAAAAAAAAAAAAAAAA) >> 1)
-  n = (n & 0x3333333333333333) + ((n & 0xCCCCCCCCCCCCCCCC) >> 2)
-  n = (n & 0x0F0F0F0F0F0F0F0F) + ((n & 0xF0F0F0F0F0F0F0F0) >> 4)
-  n = (n & 0x00FF00FF00FF00FF) + ((n & 0xFF00FF00FF00FF00) >> 8)
-  n = (n & 0x0000FFFF0000FFFF) + ((n & 0xFFFF0000FFFF0000) >> 16)
-  n = (n & 0x00000000FFFFFFFF) + ((n & 0xFFFFFFFF00000000) >> 32) # This last & isn't strictly necessary.
-  return n
-def toggleKthBit(n, k): 
-    return (n ^ (1 << (k-1))) 
-
-def mutateNets(nets, adaptive =False):
-    newNetsIndex = np.random.randint(0,len(nets),int(len(nets)*.1))
-    for i in newNetsIndex:
-        current = nets[i]
+def mutateNets(nets):
+    for index, current in enumerate(nets): 
+        # Calculate the length 
         currentLayers = len(current.layers)
+        # This calculates using 16 bits number 
+        # If current layers length 44 then it gives 3
+        # I think basically counts for that integer number
         num = countBits(currentLayers)
-        for i in range(num):
+        # Starting loop for num
+        for i in range(1, num):
+            # random.uniform(0,1) gives random number between 0 and 1
             if random.uniform(0, 1) < (1/num):
+                # it returns a integer with will use for creating number of layes
                 currentLayers = toggleKthBit(currentLayers,i)
-        nets[i] = createNet(specificLayers = currentLayers, adaptive=adaptive)
+        # New layers created for that number of currentLayers
+        nets[index] = createNet(specificLayers = currentLayers)
     return nets
 
-def writeNetworks(nets,adaptive = False):
-    if adaptive:
-        filename = "Genn/weights"
-    else:
-        filename = "Genn/adaptiveWeights"
+def writeNetworks(nets):
     for i in range(len(nets)):
-<<<<<<< HEAD
         with open("GENN/weights" + str(i) + ".csv",'w') as myfile:
-=======
-        with open(filename + str(i) + ".csv",'w') as myfile:
->>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
             wr = csv.writer(myfile, quoting = csv.QUOTE_ALL) 
             for j in range(len(nets[i].layers)):
                 wr.writerow(nets[i].layers[j].weights)
 
-<<<<<<< HEAD
 def readNets(nets):
     with open("GENN/masterWeights/weights.csv") as csvfile:
-=======
-def readNets(nets, adaptive = False):
-    if adaptive:
-        filename = "Genn/masterWeightsAdaptive/weights.csv"
-    else:
-        filename = "Genn/masterWeights/weights.csv"
-        
-    with open(filename) as csvfile:
->>>>>>> d7d10af77261a86285369ec9f326cc9baa3e45d5
         reader = csv.reader(csvfile)
         layers = []
         for row in reader:
@@ -145,9 +120,4 @@ def readNets(nets, adaptive = False):
             for j in row:
                 temp.append(ast.literal_eval(j))
             layers.append(Layer(temp))
-        if adaptive:
-            return[AdaptiveNetwork(layers)] * nets 
-        else:
-            return [Network(layers)] * nets  
-
-
+        return [Network(layers)] * nets  
