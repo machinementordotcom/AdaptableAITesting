@@ -1,13 +1,13 @@
 
 import sys
 import os
-sys.stdout = open(os.devnull, 'w')
+#sys.stdout = open(os.devnull, 'w')
 import arcade
 import tensorflow as tf
 import numpy as np
 from tensorflow import keras
 import multiprocessing
-sys.stdout = sys.__stdout__
+#sys.stdout = sys.__stdout__
 
 RANDOM_SEED = 1
 
@@ -100,62 +100,60 @@ class Network:
     
     def __init__(self, layers): # layers comes from 
         self.layers = layers
-    
+
+        
+    ## NH - corrected structure of output layers - instead of 5 separate layers, there are now
+    # 2 layers, one for moves and one for attacks, with 2 and 3 output variables respectively
     def createNetwork(self):
         tensors = []
         results = []
-        layer = tf.keras.layers.Dense(1, input_shape=(17,1)) # 17 is input size
+        layer = tf.keras.layers.Dense(1, input_shape=(17,)) # NH - corrected shape of input tensor
+#       print("layer var",layer)
         inputs = keras.Input(shape=(17,))
-        for i in range(len(self.layers) - 4):
-            if len(self.layers)- 5 == 0:
-                move_x = tf.keras.layers.Dense(1,activation='tanh')
-                move_y = tf.keras.layers.Dense(1,activation='tanh')
-                shoot1 = tf.keras.layers.Dense(1,activation='sigmoid')
-                shoot2 = tf.keras.layers.Dense(1,activation='sigmoid')
-                shoot3 = tf.keras.layers.Dense(1,activation='sigmoid')
-                tensors.append(move_x)
-                tensors.append(move_y)
-                tensors.append(shoot1)
-                tensors.append(shoot2)
-                tensors.append(shoot3)
-                results.append(move_x(inputs))
-                results.append(move_y(inputs))
-                results.append(shoot1(inputs))
-                results.append(shoot2(inputs))
-                results.append(shoot3(inputs))
+#        print("inputs var",inputs)
+#        print("Range for loop is",len(self.layers),"minus 1")
+        for i in range(len(self.layers) + 2):
+            if len(self.layers) - 2 == 0:
+#                print("short network - only 2 layers")
+                moves = tf.keras.layers.Dense(2, activation='linear')(inputs)
+                attacks = tf.keras.layers.Dense(3, activation='sigmoid')(inputs)
+                outputs = [moves, attacks]
             elif i == 0:
-                h = tf.keras.layers.Dense(len(self.layers[i].weights[0]), activation='relu')
-                results.append(h(inputs))
-                tensors.append(h)
-            elif i <= len(self.layers)- 4 - 2:
-                h = tf.keras.layers.Dense(len(self.layers[i].weights[0]), activation='relu')
-                results.append(h(results[i-1]))
-                tensors.append(h)
+#                print("i == 0, first layer")
+                h = tf.keras.layers.Dense(len(self.layers[i].weights[0]), activation='relu')(inputs)
+#                print("self.layers",len(self.layers[i].weights[0]))
+            elif i < len(self.layers):
+#                print("i <= tensors")
+                h = tf.keras.layers.Dense(len(self.layers[i].weights[0]), activation='relu')(h)
+#                print("self.layers",len(self.layers[i].weights[0]))
             else:
-                move_x = tf.keras.layers.Dense(1,activation='tanh')
-                move_y = tf.keras.layers.Dense(1,activation='tanh')
-                shoot1 = tf.keras.layers.Dense(1,activation='sigmoid')
-                shoot2 = tf.keras.layers.Dense(1,activation='sigmoid')
-                shoot3 = tf.keras.layers.Dense(1,activation='sigmoid')
-                results.append(move_x(results[i-1]))
-                results.append(move_y(results[i-1]))
-                results.append(shoot1(results[i-1]))
-                results.append(shoot2(results[i-1]))
-                results.append(shoot3(results[i-1]))
-                tensors.append(move_x)
-                tensors.append(move_y)
-                tensors.append(shoot1)
-                tensors.append(shoot2)
-                tensors.append(shoot3)
-        counter = 0
-        for i in range(len(tensors)):
-            if i < len(self.layers) - 5:
-                tensors[i].set_weights([np.asarray(self.layers[i].weights),np.zeros(len(self.layers[i].weights[0]))])
-            else:
-                tensors[i].set_weights([np.asarray(self.layers[i - counter].weights),np.zeros(len(self.layers[i - counter].weights[0]))])
-                counter += 1 
+#                print("outputs")
+                moves = tf.keras.layers.Dense(2, activation='linear')(h)
+                attacks = tf.keras.layers.Dense(3, activation='sigmoid')(h)
+                outputs = [moves, attacks]
+        
+        model = tf.keras.Model(inputs=inputs,
+                              outputs=outputs)
 
-        return tf.keras.Model(inputs=inputs, outputs=[results[len(results)-5],results[len(results)-4],results[len(results)-3],results[len(results)-2],results[len(results)-1]])
+        counter = 0
+#        print("Tensors:",len(tensors),tensors,"\nLayers:",len(self.layers))
+        
+        """ for i in range(len(tensors)):
+            print(len(self.layers)-2)
+            if i < len(self.layers) - 2:
+                print(i,"is less than total layers minus 2")
+                print(tensors[i],"number of weights",len(self.layers[i].weights))
+                tensors[i].set_weights([np.asarray(self.layers[i].weights),
+                                        np.zeros(len(self.layers[i].weights[0]))])
+                print("Weights are set for tensor",i)
+            else:
+                print("else")
+                tensors[i].set_weights([np.asarray(self.layers[i - counter].weights),
+                                        np.zeros(len(self.layers[i - counter].weights[0]))])
+                counter += 1 
+        """
+
+        return model
                 
 
 

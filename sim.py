@@ -27,7 +27,8 @@ from GENN.GENNFunctions import *
 random.seed(RANDOM_SEED)
 
 class Game:
-    def __init__(self,width , height, title, games, player_1_type, player_2_type,conGames,rounds,player_1_nets,player_2_nets,trendTracking,
+    def __init__(self, width, height, title, games, player_1_type, player_2_type,
+                 conGames, rounds, player_1_nets, player_2_nets, trendTracking,
                  player_1_simulation, player_2_simulation, process_id):
         """
         Initializer
@@ -268,7 +269,11 @@ class Game:
         elif self.player1_type == 'genn' or self.player1_type == 'agenn':
             self.player1 = GENN(KNIGHT_IMAGE,1)
             self.player1.net = self.player_1_nets[self.process_id]
-            self.player1.model =  self.player1.net.createNetwork()
+            self.player1.model = self.player1.net.createNetwork()
+ #           print(self.player1.model.summary())
+ #           import omegaml as om
+ #           om.models.put(self.player1.model, self)
+
         else:
             self.player1 = Enemy(KNIGHT_IMAGE,1)
 
@@ -397,41 +402,47 @@ class Game:
         self.player2.currentTrend = 0
       
         print("Game setup complete for Process ID/Network: ",str(self.process_id))
+#        print("\nModel summary:\n",self.player1.model.summary())
     
     def end_game(self):
-            
-#        print('Running end_game')
-        
+ 
         self.player1_score += self.player1.score
         self.player2_score += self.player2.score
                 
-        if self.games > 0: 
+        if self.games > 0:
             self.games -= 1
-            
-        print("Player",str(self.process_id),"game over.",str(self.games),"games left")
         
-       
         # NH - reversed order of games to front load longer-lasting 'range' games
-        if self.games > 6: self.player2_type = 'range'
-        elif self.games <= 6 and self.games > 3: self.player2_type = 'mid'
-        elif self.games <= 3 and self.games > 0: self.player2_type = 'short'
-            
+        # NH - added fitness scoring by opponent type, to be averaged at end of round
+        if self.games > 6: 
+            self.player2_type = 'range'
+        elif self.games <= 6 and self.games > 3: 
+            self.player2_type = 'mid'
+        elif self.games <= 3 and self.games > 0: 
+            self.player2_type = 'short'
+        
+        print("Player",str(self.process_id),"game over.",str(self.games),"games left")
+                    
         # NH - added this here, as it seems more fitting to have it here
-     
-        if self.player1.health <=0 and self.player2.health <=0:
+        
+        if self.player1.health <= 0 and self.player2.health <= 0:
             self.player1.health_diff = 0
+                       
+        if self.player1.shield == 0:
+            self.player1.health = self.player1.health + 500
+            print("Player1 gets shield bonus, final health is",self.player1.health)
             
-        elif self.player2.health <= 0 and self.player1.shield == 0:
-                self.player1.health_diff = self.player1.health - self.player2.health + 500
-            
-        elif self.player1.health <=0 and self.player2.shield == 0:
-                self.player1.health_diff = self.player1.health - self.player2.health - 500
-        else:
-            self.player1.health_diff = self.player1.health - self.player2.health
-            self.health_diff += self.player1.health_diff
+        if self.player2.shield == 0:
+            self.player1.health = self.player1.health - 500
+            print("Player1 gets shield penalty, final health is",self.player1.health)
+        
+        self.player1.health_diff = self.player1.health - self.player2.health
+        self.health_diff += self.player1.health_diff
 
         if self.games == 0: 
-            print("Round over for player",str(self.process_id),", calculating final health")
+            print("Round over for player",str(self.process_id),", calculating final fitness")
+            self.health_diff = self.health_diff / self.totalGames  # Returns average fitness across all games in round
+            print("Final fitness is",self.health_diff,"totalGames is",self.totalGames)
             return self.health_diff
         
         else: 
@@ -489,7 +500,6 @@ class Game:
         return False
     
     def update(self, max_moves):
-#        print("Main update running, move",str(self.curtime))
 
         # Attack Data Holder
         player1_fireball = 0
@@ -499,40 +509,12 @@ class Game:
         player1_knife = 0
         player2_knife = 0
         val = True
-#        print("Maximum",str(max_moves),"allowed")
-        
-#        game_not_over = True # This variable is returned as False when game is over
-                
-        # sets a timer that game and perspective players use
-        # not sure if necessary
 
         self.curtime += 1
-#        print("self.curtime is now",str(self.curtime))
-
         self.player1.update()
-#        print("Player1 moves")
         self.player2.update()
-#        print("Player2 moves")
         
-#        if self.trendTracking == 'yes': 
-#            if self.curtime % 900 == 0: self.writeTrends()
-
-        if self.curtime % 250 == 0:  ## added intermittent updates instead of every move
-            self.end = datetime.now()
-            try: avg = (self.end-self.start) / 250
-            except: 
-                avg = 0 
-                print("start time unknown")
-            print("\nRound:",str(self.rounds),
-                  "\nGames left:",str(self.games),
-                  "\nPlayer:",str(self.process_id),
-                  "\nMove:",str(self.curtime),
-                  "\nPlayer1 health:", str(self.player1.health),
-                  "\nPlayer2 Health:", str(self.player2.health),
-                  "\nAvg move time:", avg
-                 )
-            self.start = datetime.now()
-#            print("Player version:",str(self.player1.version))
+        self.fitness = [self.player1.health - self.player2.health]
 
         # player 1 collision
         if self.player1.center_y >= self.height:
@@ -553,17 +535,6 @@ class Game:
         if self.player2.center_x <= 0:
             self.player2.center_x = 0
         
-        # Stop at hit boxes
-        # Only needs to be done for one player
-        # if self.player1.center_x - self.player1.box <= self.player2.center_x + self.player2.box:
-        #     self.player1.center_x = self.player2.center_x + self.player2.box + self.player1.box
-        # elif self.player1.center_x + self.player1.box >= self.player2.center_x - self.player2.box:
-        #     self.player1.center_x = self.player2.center_x - self.player2.box - self.player1.box
-        # if self.player1.center_y - self.player1.box <= self.player2.center_y + self.player2.box:
-        #     self.player1.center_y = self.player2.center_y + self.player2.box + self.player1.box
-        # elif self.player1.center_y + self.player1.box >= self.player2.center_y - self.player2.box:
-        #     self.player1.center_y = self.player2.center_y - self.player2.box - self.player1.box
-
         #fireball movement
         for self.fireball in self.player1.fireball_list:
             if self.collisionCheck(self.player2,self.fireball):
@@ -636,6 +607,25 @@ class Game:
                 player1_knife = 1
                 
             self.player2.knife_list.remove(self.knife)
+        
+        ## Reporting in console
+        interval = 1000
+        if self.curtime % interval == 0:  ## added intermittent updates instead of every move
+            self.end = datetime.now()
+            try: avg = (self.end-self.start) / interval
+            except: 
+                avg = 0 
+                print("start time unknown")
+            print("\nRound:",str(self.rounds),
+                  "\nGames left:",str(self.games),
+                  "\nPlayer:",str(self.process_id),
+                  "\nMove:",str(self.curtime),
+                  "\nPlayer1 Health:", str(self.player1.health),
+                  "\nPlayer2 Health:", str(self.player2.health),
+                  "\nPlayer1 Fitness:", str(self.fitness),
+                  "\nAvg move time:", avg
+                 )
+            self.start = datetime.now()
 
         # aGENN Supervisor
         # NH - making change to use current difference as only metric
@@ -656,14 +646,16 @@ class Game:
                     self.player1.net = mutateNets(self.player1.net)[0]
                     self.player1.model =  self.player1.net.createNetwork()
            """                
-	#Print The Log Result
+        #Print The Log Result
         progress_data = dict(
         	games = [self.games],
-        	player_1_type = [self.player1_type],
+        	net_id = str([self.player_1_nets[self.process_id]])[-15:],
+        	model_id = [self.player1.model],
+#        	player_1_type = [self.player1_type],
         	player_2_type = [self.player2_type],
-        	conCurrentGames = [self.conGames],
-        	player_1_simulation = [self.player_1_simulation],
-        	player_2_simulation = [self.player_2_simulation],
+#        	conCurrentGames = [self.conGames],
+#        	player_1_simulation = [self.player_1_simulation],
+#        	player_2_simulation = [self.player_2_simulation],
         	rounds = [self.rounds],
         	process_id = [self.process_id],
 #        	agenn_v = [self.player1.version],
@@ -673,8 +665,8 @@ class Game:
 #        	player2_center_x = [self.player2.center_x],
 #        	player_2_center_y = [self.player2.center_y],
         	player2_shield = [self.player2.shield],
-        	player1_score = [self.player1_score],
-        	player2_score = [self.player2_score],
+#        	player1_score = [self.player1_score],
+#        	player2_score = [self.player2_score],
 #        	player1_fireball = [player1_fireball],
 #        	player2_fireball = [player2_fireball],
 #        	player1_arrow = [player1_arrow],
@@ -682,15 +674,14 @@ class Game:
 #        	player1_knife = [player1_knife],
 #        	player2_knife = [player2_knife],
         	game_move = [self.curtime], 
-#        	player1_health = [self.player1.health],
-#        	player2_health = [self.player2.health],
+        	player1_health = [self.player1.health],
+        	player2_health = [self.player2.health],
         	health_diff = [self.player1.health - self.player2.health], # NH - replaced separate health points above
         	timestamp = [datetime.now()],
         )
         
         ## NH made reporting less frequent for performance reasons
-        
-        if self.curtime % 10 == 0:
+        if self.curtime % 1 == 0:
             dataFrame = pd.DataFrame(progress_data)
             file_name = "data_log.csv"
 #            print("Writing data log")
@@ -700,13 +691,8 @@ class Game:
 
             else:
                 dataFrame.to_csv(file_name, mode='w', header=True, index=False)                
-        
-  
-        
-        # If health is zero kill them
-#        print("Checking for game over state.\n\nself.curtime is",str(self.curtime),
-#             "and",str(self.games),"games remain")
-        
+       
+        # Check for end of game state
         if self.curtime >= max_moves:
             print("Game has reached max moves of",str(max_moves))
             
@@ -730,27 +716,24 @@ class Game:
             self.draws += 1
             print("Game ends in a draw")
             val = self.end_game()
-                               
                 
         elif self.player2.health <= 0:
             self.player1.score += 1 
             val = self.end_game()
             
-            
         elif self.player1.health <= 0:
             self.player2.score += 1 
             val = self.end_game()
-           
-                            
-        if self.player1.health == self.player1_previous_health and self.player2_previous_health == self.player2.health: self.healthChanges += 1
-        else: self.healthChanges = 0
+                           
+#        if self.player1.health == self.player1_previous_health and self.player2_previous_health == self.player2.health: self.healthChanges += 1
+#        else: self.healthChanges = 0
         
-        if self.healthChanges > 1500: 
-            self.jitter()
-            self.healthChanges = 0
+#        if self.healthChanges > 1500: 
+#            self.jitter()
+#            self.healthChanges = 0
             
-        self.player1_previous_health = self.player1.health
-        self.player2_previous_health = self.player2.health
+#        self.player1_previous_health = self.player1.health
+#        self.player2_previous_health = self.player2.health
         
         return val
         

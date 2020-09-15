@@ -6,6 +6,7 @@ import csv
 import ast
 
 def createNets(conCurrentGame): # creates new network with randomized layers and nodes
+
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -14,24 +15,20 @@ def createNets(conCurrentGame): # creates new network with randomized layers and
     for i in range(conCurrentGame):
         layers = []
         totalLayers = random.randint(2, maxlayers)
-        totalNodes = np.random.randint(1,maxNodes,size=(1,totalLayers)).tolist()[0]
+        totalNodes = np.random.randint(inputsNum,maxNodes,size=(1,totalLayers)).tolist()[0]
         # Create every layer
         for j in range(totalLayers):
             if j == 0:
                 nodeWeights = np.random.rand(1,inputsNum,totalNodes[0]).tolist()[0]
             else:
-                nodeWeights = np.random.rand(1,totalNodes[j-1],totalNodes[j]).tolist()[0]
+                nodeWeights = np.random.rand(inputsNum,totalNodes[j-1],totalNodes[j]).tolist()[0]
             layers.append(Layer(nodeWeights))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-        layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
         nets.append(Network(layers))
     print("\ncreateNets has run with nets=\n",str(nets))
     return nets
 
 def createNet(specificLayers = None,specificNodes = None): # creates new net with option to specify number of layers and nodes
+    
     maxlayers = 100
     maxNodes = 100
     inputsNum = 17
@@ -48,12 +45,6 @@ def createNet(specificLayers = None,specificNodes = None): # creates new net wit
         else:
             nodeWeights = np.random.rand(1,totalNodes[j-1],totalNodes[j]).tolist()[0]
         layers.append(Layer(nodeWeights))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    layers.append(Layer(np.random.rand(1,totalNodes[len(totalNodes)-1],1).tolist()[0]))
-    print("Network")
     return Network(layers)
 
 def countBits(n):
@@ -70,7 +61,7 @@ def toggleKthBit(n, k):
 
 
 def createChildNets(parents,number): # no longer used
-    return createNets(number)
+
     newNets = []
     inputsNum = 17
     maxNodes = 100
@@ -95,17 +86,22 @@ def createChildNets(parents,number): # no longer used
         newNets.append(Network(layers))
     return newNets
 
-def mutateNets(nets): # 
-    newNetsIndex = np.random.randint(0,len(nets),int(len(nets)*.1))
-    print("created newNetsIndex:",str(newNetsIndex),"from nets:",str(nets))
-    for i in newNetsIndex:
-        current = nets[i]
+def mutateNets(nets):
+    for index, current in enumerate(nets): 
+        # Calculate the length 
         currentLayers = len(current.layers)
+        # This calculates using 16 bits number 
+        # If current layers length 44 then it gives 3
+        # I think basically counts for that integer number
         num = countBits(currentLayers)
-        for i in range(1,num): # NH - added 1 to force range to start above zero
+        # Starting loop for num
+        for i in range(1, num):
+            # random.uniform(0,1) gives random number between 0 and 1
             if random.uniform(0, 1) < (1/num):
+                # it returns a integer with will use for creating number of layes
                 currentLayers = toggleKthBit(currentLayers,i)
-        nets[i] = createNet(specificLayers = currentLayers)
+        # New layers created for that number of currentLayers
+        nets[index] = createNet(specificLayers = currentLayers)
     return nets
 
 def writeNetworks(nets):

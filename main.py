@@ -1,7 +1,7 @@
 
 import sys
 import os
-#sys.stdout = open(os.devnull, 'w')
+#sys.stdout = open(os.devnull, 'w') # this cancels all output and prevents writing to the console
 from MyGame import *
 import arcade
 from sim import *
@@ -10,7 +10,7 @@ from util.inputFunctions import *
 from GENN.GENNFunctions import * 
 import time
 import multiprocessing
-import concurrent.futures
+# import concurrent.futures
 from operator import add 
 from ctypes import c_int
 from operator import itemgetter 
@@ -23,7 +23,7 @@ import matplotlib.ticker as ticker
 
 def runOneGame(a):
 
-    max_moves = 1000
+    max_moves = 5000
     print("runOneGame commencing")
     x = Game(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11],a[12],a[13])
     print("setting up players")
@@ -31,6 +31,7 @@ def runOneGame(a):
     val = True
     print("Game Play Started...")
     while val == True:
+#        print("Playing...")
         val = x.update(max_moves)
     return val    
     print('runOneGame OVER') 
@@ -96,7 +97,7 @@ def main(args):
 
     if train == 'yes':
         # Game/Network will be played in the same time per generation
-        conCurrentGame = 10
+        conCurrentGame = 20  # Must be at least 20 for topTen to function (min 2 nets)
         # Total Generation 
         generations = 111
         simulation_player_1 = 'genn'
@@ -108,7 +109,9 @@ def main(args):
         graphOutput = 'no'
         games_per_network = 9
         train = 'yes'
-        pools = 10
+        
+        ## Select optimal number of pools
+        pools = os.cpu_count() * 4
         
         print("All variables are set")
     else:
@@ -179,27 +182,58 @@ def main(args):
         evolutionHealth = []
 
         for rounds in range(generations):
-#            spacer()
+
             print("Total rounds %d out of %d" % (rounds, generations))
             print("Player1 Nets length:", str(len(player_1_nets)))
-            print(player_1_nets)
+            print("at beginning of round:\n",player_1_nets)
+#            time.sleep(30)
             
             if evolutions == True and train == 'yes':
+                
                 if player_1_type in ['genn','agenn']: # NH - added agenn to ensure evolution will take place with agenn as with genn
-                    #if rounds % 9 == 0 and rounds != 0:
+                    
                     if rounds != 0: # NH - mutation should happen at the beginning of every generation after 1
+                        
                         print("evolutionHealth:",str(evolutionHealth))
-                        bestIndexs = sorted(range(len(evolutionHealth)), key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.2//1):]
-                        print("bestIndexs:",str(bestIndexs))
+                        
+                        # NH - changed from .2 to .1 to take only top 10%
+                        bestTen = sorted(range(len(evolutionHealth)),
+                                            key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.1):]
+                        print("bestTen:",str(bestTen))                       
+                    
+                        # NH - added bestThirty for use in mutate and xover
+                        bestThirty = sorted(range(len(evolutionHealth)),
+                                            key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.3):] 
+                        print("bestThirty:",str(bestThirty))
+                        
                         evolutionHealth = []
-                        newNets = list(itemgetter(*bestIndexs)(player_1_nets))
-                        print("These are the new Nets:",str(newNets))
-                        temp = createNets(conCurrentGame - len(newNets)) # NH - replaced createChildNets with createNets
-                        print("These are the temp nets:",str(temp))
-                        player_1_nets = newNets + temp
-                        print("These are player_1_nets:",str(player_1_nets))
-                        player_1_nets = mutateNets(player_1_nets)
-                        print("And these are the mutated nets:",str(player_1_nets))
+                        print("evolutionHealth is reset to",evolutionHealth)
+                        #time.sleep(10)
+                        
+                        ## Retrieve the best 10 and 30% as a list of networks
+                        bestTenNets = list(itemgetter(*bestTen)(player_1_nets)) 
+                        print("These are the top 10% of Nets from previous round (top 10%):",str(bestTen))
+                        
+                        # NH - changed 'newNets' to 'bestThirtyNets'
+                        bestThirtyNets = list(itemgetter(*bestThirty)(player_1_nets)) 
+                        print("These are the top 30% of Nets from previous round (top 10%):",str(bestThirty))
+                        
+                        ## NH - this will be replaced with crossover code when defined
+                        xoverNets = createNets(int(conCurrentGame * 0.3)) 
+                        print("These are xoverNets (30%):",str(player_1_nets))
+                        
+                        # passing in an additional variable
+                        mutatedNets = mutateNets(bestThirtyNets) 
+                        print("And these are the nets mutated from best nets (30%):",str(mutatedNets))
+                        
+                        # NH - replaced createChildNets with createNets
+                        randomNets = createNets(int(conCurrentGame)-len(bestTenNets)+len(xoverNets)+len(mutatedNets)) 
+                        print("These are the new random nets (30%):",str(randomNets))
+                        
+                        # NH - pasting the network lists together
+                        player_1_nets = bestTenNets + randomNets + xoverNets + mutatedNets  
+                        print("These are player_1_nets for next round:",player_1_nets)
+                        #time.sleep(30)
                         
                 if player_2_type == 'genn':
                     #if rounds % 9 == 0 and rounds != 0:
@@ -212,17 +246,11 @@ def main(args):
                         player_2_nets = mutateNets(player_2_nets)
             
 #            pools = max(conCurrentGame,os.cpu_count()*4) # NH - need to create enough processes or threads to keep CPU busy
-#            pools = 4 # NH - testing for best ratio of processes to games
             
             print("Creating",pools,"process or thread pools")
-            ex = concurrent.futures.ProcessPoolExecutor(max_workers=pools)  
-#            ex = multiprocessing.Pool(pools) 
-            """
-            if train == 'yes':
-                if rounds % 9 < 3: player_2_type = 'short'
-                elif rounds % 9 < 6: player_2_type = 'mid'
-                else: player_2_type = 'range'
-            """
+#            ex = concurrent.futures.ProcessPoolExecutor(max_workers=pools)  
+            ex = multiprocessing.Pool(pools) 
+
             result = ex.map(runOneGame,[ x + [i - 1]  \
                                        for i,x in enumerate([x for x in \
                                                              [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,
@@ -231,25 +259,19 @@ def main(args):
                                                              player_2_nets,trendTracking,
                                                              simulation_player_1,simulation_player_2]] *conCurrentGame  ],1) ]) #chunksize
             
-            print("Result:",result)
+            print("Round result set:",result)
             
+
             evolutionHealth = [float(i) for i in result]
-#            else: evolutionHealth = list(map(add, [float(i) for i in result], evolutionHealth)) 
-                   
-#            evolutionHealth = [float(i) for i in result]
+                  
             player1Wins += sum(int(i) > 0 for i in [int(i) for i in result]) 
             player2Wins += sum(int(i) < 0 for i in [int(i) for i in result])
-            """
-            if train == 'yes':
-                if rounds % 9 < 3: shortWins += sum(int(i) < 0 for i in [int(i) for i in result])
-                elif rounds % 9 < 6: midWins += sum(int(i) < 0 for i in [int(i) for i in result])
-                else: rangeWins += sum(int(i) < 0 for i in [int(i) for i in result])
-            """
+
             draws += sum(int(i) == 0 for i in [int(i) for i in result])  
             leftOverHealth += sum([float(i) for i in result])
 
-#            ex.close()  #NH - not needed if using futures.concurrent for multiprocessing
-#            ex.join()
+            ex.close()  #NH - not needed if using futures.concurrent for multiprocessing
+            ex.join()
 
         if player_1_type is 'genn' or player_1_type is 'agenn':
             writeNetworks(player_1_nets)
