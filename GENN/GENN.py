@@ -7,6 +7,8 @@ import numpy as np
 from util.constants import *
 import math
 import random
+import pandas as pd
+import time
 
 class GENN(arcade.Sprite):
 
@@ -99,7 +101,9 @@ class GENN(arcade.Sprite):
                self.weights[weightType] = [float(i) for i in row]
                weightType +=1
                 
-    def update(self):
+    def update(self, rounds=None, process_id=None):
+        self.rounds = rounds
+        self.process_id = process_id
         self.curtime += 1
         if len(self.opponent_hitbox_list) >= 3:
             opp_proj_1_x = self.opponent_hitbox_list[0].center_x
@@ -152,13 +156,13 @@ class GENN(arcade.Sprite):
                        self.center_y / 1000,
                        self.opponent.center_x / 1000,
                        self.opponent.center_y / 1000, # What??  Two entries for x, none for y.  Fixing now!
-                       self.health / 1000,
-                       self.opponent.health / 1000,
+                       self.health / 10000,
+                       self.opponent.health / 10000,
                        self.total_time / 1000,
                        self.shield,
                        self.opponent.shield,
-                       self.curtime / 3000,
-                       len(self.opponent_hitbox_list) / 100,
+                       self.curtime / 5000,
+                       len(self.opponent_hitbox_list) / 10, # num of times opponent has attacked
                        opp_proj_1_x / 1000,
                        opp_proj_1_y / 1000,
                        opp_proj_2_x / 1000,
@@ -168,46 +172,37 @@ class GENN(arcade.Sprite):
                          ]]
          
 #        print("inputs_scaled",inputs_scaled)
-    
- 
       
-      ## NH added code to store model and require GPU for net creation
-#      model_id = str(self)  ## This should happen outside and get passed in
-#      om.models.put(self.model,model_id) ## This should only happen once for each model
-#      model_id = str(self.process_id)
-#      result = om.runtime.require('gpu').model(model_id).predict(np.asarray(inputs))
-#      choices = result.get()
-                
-        import pandas as pd
-        import time
-        from sklearn.preprocessing import MinMaxScaler
-        
-        
-#        scaler = MinMaxScaler(feature_range = (-1, 1))
-#        inputs_array = np.asarray(inputs_raw).reshape([17,-1])  # NH - inputs were not shaped correctly for scaling
-        
-#        print("inputs_array",inputs_array)
-#        inputs_scaled = scaler.fit_transform(inputs_array) # NH - inputs were not scaled at all
-      
-        
         inputs = np.asarray(inputs_scaled).reshape(-1,17)
-       
+        
+        ## prepare to run prediction in omega cloud (very slow for regular gameplay)
+        """model = om.runtime.require('gpu').model('gen%dp%d' % (self.rounds, self.process_id))
+        result = model.predict(inputs)
+        choices_raw = result.get()"""
+        
+        ## Retrieve model from omega and run locally
+#        print("model ID:",self.rounds, self.process_id)
+
+#        model = om.models.get('gen%dp%d' % (self.rounds, self.process_id))
+#        choices_raw = model.predict(inputs)
+        
         choices_raw = self.model.predict(inputs, verbose=0)
 #        print("Choices - scaled predictions:",choices_raw[0][0],choices_raw[1][0])
         
         ## Separate move prediction and un-scale it
         
-        choices1 = np.asarray(list(choices_raw[0][0])).reshape(2,-1)
-        choices2 = np.asarray(list(choices_raw[1][0])).reshape(3,-1)
+#        choices1 = np.asarray(list(choices_raw[0][0])).reshape(2,-1)
+#        choices2 = np.asarray(list(choices_raw[1][0])).reshape(3,-1)
 #        print("Choices reshaped",choices1,choices2)
-        
-        choices = [[choices1[0][0] * 1000,
-                    choices1[1][0] * 1000,
-                    choices2[0][0],
-                    choices2[1][0],
-                    choices2[2][0]
+#        print(self.model.summary())
+#        print(choices_raw)
+        choices = [[choices_raw[0][0] * 1000,
+                    choices_raw[0][1] * 1000,
+                    choices_raw[0][2],
+                    choices_raw[0][3],
+                    choices_raw[0][4]
                    ]]
-#        print(choices)
+#        print("Choices:",choices)
         
 #        print(choices[0][0],choices[0][1],choices[0][2],choices[0][3],choices[0][4])
         
@@ -225,6 +220,7 @@ class GENN(arcade.Sprite):
         #Print The Log Result
         io_stream = dict(
             self_id = [str(self)],
+            model_id = [str('gen%dp%d' % (self.rounds, self.process_id))],
             center_x = [self.center_x],
             center_y = [self.center_y],
             opponent_center_x = [self.opponent.center_x],
@@ -252,15 +248,17 @@ class GENN(arcade.Sprite):
         
 #        print("\nModel input:\n\n:",inputs,"\n\nModel predicts:\n\n",np.array(choices))
 
-        if self.curtime % 1 == 0:  #enabled for every move
-            dataFrame = pd.DataFrame(io_stream)
-            file_name = "io_stream.csv"
+#        if self.curtime % 1 == 0:  #enabled for every move
+#            dataFrame = pd.DataFrame(io_stream)
+#            om.datasets.put(dataFrame, 'GENN_io_stream', append=True)
+            
+        """file_name = "io_stream.csv" # NH - bypassed in order to create stream set in om
    
-            if os.path.exists(file_name):
-                dataFrame.to_csv(file_name, mode='a', header=False, index=False)
+        if os.path.exists(file_name):
+               dataFrame.to_csv(file_name, mode='a', header=False, index=False)
 
-            else:
-                dataFrame.to_csv(file_name, mode='w', header=True, index=False)  
+        else:
+            dataFrame.to_csv(file_name, mode='w', header=True, index=False)"""  
 
         
 #        model = om.runtime.model(self)
@@ -291,48 +289,7 @@ class GENN(arcade.Sprite):
         self.change_x = -math.cos(self.angle)*MOVEMENT_SPEED
         self.change_y = -math.sin(self.angle)*MOVEMENT_SPEED
    
-        """ ## The below section is entirely for trend reporting, which has been replaced
-
-        ## If player is to the right of opponent AND predict x is negative
-        ## and if player is above opponent AND predict y is negative ##
-        ## OR if player is to the left of opponent and predict x is positive
-        ## AND if player is above opponent and predict y is negative
-        ## OR if player is to the left of opponent and predict x is positive
-        ## AND if player is below opponent and predict y is positive
-        ## OR if player is to the right of opponent and predict x is negative
-        ## AND if player is below opponent and predict y is positive
  
-        if self.center_x > self.opponent.center_x and choices[0][0] < 0 \
-        and self.center_y > self.opponent.center_y and choices[0][1] < 0 \
-        or self.center_x < self.opponent.center_x and choices[0][0] > 0 \
-        and self.center_y > self.opponent.center_y and choices[1][0] < 0 \
-        or self.center_x < self.opponent.center_x and choices[0][0] > 0 \
-        and self.center_y < self.opponent.center_y and choices[1][0] > 0 \
-        or self.center_x > self.opponent.center_x and choices[0][0] < 0 \
-        and self.center_y < self.opponent.center_y and choices[1][0] > 0:
-        ## In other words, if the prediction will move the player TOWARD the opponent,
-        # then log the movement or "trend".  The rest of the expression completes
-        # the log.
-            self.trends['towardsOpponent'] += 1
-            if self.lastMovement == "Away":
-                self.trends['movementChanges'] +=1 
-                self.currentTrend = 0
-            else:
-                self.currentTrend +=1 
-                if self.currentTrend > self.trends['biggestTrend']:
-                    self.trends['biggestTrend'] = self.currentTrend
-            self.lastMovement = "Towards"
-        else:
-            self.trends['awayOpponent'] += 1
-            if self.lastMovement == "Towards":
-                self.trends['movementChanges'] +=1 
-                self.currentTrend = 0
-            else:
-                self.currentTrend +=1 
-                if self.currentTrend > self.trends['biggestTrend']:
-                    self.trends['biggestTrend'] = self.currentTrend
-            self.lastMovement = "away"
-        """    
         ## NH - this entire section allowed for games to transpire 
         # even though no actual predictions were taking place.
         # The models were returning 1-1-1-1-1 on every single move
@@ -362,6 +319,13 @@ class GENN(arcade.Sprite):
                     self.shootarrow()
                     self.trends['arrow'] = self.trends['arrow'] + 1
                     
+        ## NH - changed to make most inaction most likely
+        # Previously, games were ending within 90 moves due to
+        # default (arrow) attacks getting lucky.  This does not
+        # differentiate GENN networks.
+        elif choices[0][2] == choices[0][3] == choices[0][4]:
+            pass
+        
         ## If it's still within 30 moves of the game's beginning, then
         # if var1 is greater than var2 and var1 is greater than var3,
         # attack short (knife)
@@ -375,7 +339,6 @@ class GENN(arcade.Sprite):
         ## otherwise shoot an arrow and reset the game_move variable to zero    
         else:
             self.shootarrow()
- #           self.game_move = 0
             
         for arrow in self.arrow_list:
             if arrow.center_x>SCREEN_WIDTH + 10 \

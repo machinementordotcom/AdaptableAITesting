@@ -18,12 +18,12 @@ import pandas as pd
 import json
 import re 
 import matplotlib.ticker as ticker
-
+import omegaml as om
 #sys.stdout = sys.__stdout__
 
 def runOneGame(a):
 
-    max_moves = 5000
+    max_moves = 500 # High performing models usually prevail within 1000 moves
     print("runOneGame commencing")
     x = Game(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11],a[12],a[13])
     print("setting up players")
@@ -36,89 +36,60 @@ def runOneGame(a):
     return val    
     print('runOneGame OVER') 
 
-"""
-    while True:
-        if type(val) is list:
-            if val[0] == True:
-                val = x.update(move, val[1])
-#                move += 1
-#                if move % 250  == 0:  ## updates are coordinated with sim.py health updates
-                    #print("Move", str(move))
-#                    None
-        else:
-            print("Game over")
-            return val
-
-def createGraphs(playerNum):
-    with open('player' + str(playerNum) + 'Trends.txt') as f:
-        z = str(f.readline()).replace("}","").split("{")
-    p = []
-    for elm in z[1:]:
-        use = elm.split(",")
-        temp = [ re.sub("\D", "", x) for x  in use ] 
-        p.append(temp)
-    x = pd.DataFrame(p,columns = ['arrow','fire','knife','towardsOpponent','awayOpponent','movementChanges','biggestTrend'])
-    fig, ax = plt.subplots()
-
-    plt.plot(range(len(x)),x['arrow'].astype(float))    
-    plt.plot(range(len(x)),x['fire'].astype(float))    
-    plt.plot(range(len(x)),x['knife'].astype(float)) 
-    ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))   
-
-
-    plt.ylabel("Shot Frequency")
-    plt.xlabel("Time segment")
-    plt.title("Shooting trends per segment for player " + str(playerNum))
-    # plt.yticks(range(len(x)))
-    plt.legend(['Arrow', 'Fire', 'Knife'], loc='upper left')
-
-    plt.savefig("player" + str(playerNum) + "ShootingTrends")
-"""
-
 def main(args):
-    """ Main method """
-    """
-    #Remove the Log File first otherwise it for avoiding merge log data for every run
-    if os.path.exists('player_1_log.csv'):
-        os.remove('player_1_log.csv')
-    else:
-        pass
-
-    if os.path.exists('player_2_log.csv'):
-        os.remove('player_2_log.csv')
-    else:
-        pass
-        """
+    
     graphics = 'no'
     graphOutput = 'no'
     train = 'yes'
-    trendTracking = 'no'
+#    trendTracking = 'no'
     evolutions = True
-
+    
+    ## Remove existing io_stream, if applicable
+    try:
+        om.datasets.drop('GENN_io_stream')
+        print('\nio stream dataset dropped\n')
+    except:
+        print("\nio stream dataset not found or unable to drop\n")
+        pass
+    try:
+        om.datasets.drop('GENN_data')
+        print('\nGENN game dataset dropped\n')
+    except:
+        print("\nGENN game dataset not found or unable to drop\n")
+        pass
+    
+    ## Delete all models from previous games
+    for i in range(10):
+        for j in range(10):
+            try:
+                om.models.drop('gen%did%d' % (i, j))
+            except:
+                continue    
+        
     if train == 'yes':
         # Game/Network will be played in the same time per generation
         conCurrentGame = 20  # Must be at least 20 for topTen to function (min 2 nets)
         # Total Generation 
-        generations = 111
+        generations = 3
         simulation_player_1 = 'genn'
         simulation_player_2 = 'fsm'
         player_2_type = 'range'
         graphics = 'no'
         player_1_type = 'genn'
-        trendTracking = 'no'
+#        trendTracking = 'no'
         graphOutput = 'no'
         games_per_network = 9
         train = 'yes'
         
         ## Select optimal number of pools
-        pools = os.cpu_count() * 4
+        pools = os.cpu_count() * 2
         
         print("All variables are set")
     else:
         conCurrentGame = get_int_choice('How many games would you like played at the same time (Recommended amount based on computer cores '+str(multiprocessing.cpu_count())+"):",1,1000)
         generations = get_int_choice('Enter the amount of rounds to be played: ',1,500)
         games_per_network = get_int_choice('Enter the amount of games to play per network: ',1,5000)
-        trendTracking = get_str_choice("Would you like to track trends",'yes','no')
+#        trendTracking = get_str_choice("Would you like to track trends",'yes','no')
         graphOutput = get_str_choice("Would you like to create graphical outputs?",'yes','no')
         simulation_player_1 = get_str_choice("What type of simulation do you want for player 1?",'fsm','freeplay','dc','genn','agenn')
         if simulation_player_1.lower() == "freeplay":
@@ -180,6 +151,7 @@ def main(args):
         draws = 0
         leftOverHealth = 0
         evolutionHealth = []
+        bestNets = []  # NH - bestNets added
 
         for rounds in range(generations):
 
@@ -192,7 +164,11 @@ def main(args):
                 
                 if player_1_type in ['genn','agenn']: # NH - added agenn to ensure evolution will take place with agenn as with genn
                     
-                    if rounds != 0: # NH - mutation should happen at the beginning of every generation after 1
+                    if (rounds + 1) % 11 == 0: # Every 11th generation the top ten are tested
+                        
+                        pass  # Placeholder
+                        
+                    elif rounds != 0:
                         
                         print("evolutionHealth:",str(evolutionHealth))
                         
@@ -213,6 +189,12 @@ def main(args):
                         ## Retrieve the best 10 and 30% as a list of networks
                         bestTenNets = list(itemgetter(*bestTen)(player_1_nets)) 
                         print("These are the top 10% of Nets from previous round (top 10%):",str(bestTen))
+                        bestNets = bestTenNets
+                        
+                        ## Save best nets - recursively save each to omega using list
+                        for net in bestNets:
+                            print("bestNets net:",net)
+                            ## How to reference the model?
                         
                         # NH - changed 'newNets' to 'bestThirtyNets'
                         bestThirtyNets = list(itemgetter(*bestThirty)(player_1_nets)) 
@@ -256,7 +238,7 @@ def main(args):
                                                              [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,
                                                              games_per_network,player_1_type,player_2_type,
                                                              conCurrentGame,rounds,player_1_nets,
-                                                             player_2_nets,trendTracking,
+                                                             player_2_nets,bestNets,
                                                              simulation_player_1,simulation_player_2]] *conCurrentGame  ],1) ]) #chunksize
             
             print("Round result set:",result)

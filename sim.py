@@ -28,7 +28,7 @@ random.seed(RANDOM_SEED)
 
 class Game:
     def __init__(self, width, height, title, games, player_1_type, player_2_type,
-                 conGames, rounds, player_1_nets, player_2_nets, trendTracking,
+                 conGames, rounds, player_1_nets, player_2_nets, bestNets,  #NH repurposed 'trendtracking' as bestNet
                  player_1_simulation, player_2_simulation, process_id):
         """
         Initializer
@@ -44,7 +44,7 @@ class Game:
         self.grid = np.zeros(shape = (SCREEN_HEIGHT, SCREEN_WIDTH))
         self.curtime = 0
         self.written = 0
-        self.trendTracking = trendTracking
+#        self.trendTracking = trendTracking
         self.start = time.time()
         self.totalGames = games
         self.games = games
@@ -66,6 +66,7 @@ class Game:
         self.start = 0 # NH - for calculation of CPU move time
         self.end = 0
         self.health_diff = 0
+        self.bestNets = bestNets
         
         print("Game Initialized for process ID/network: ",str(self.process_id))
 
@@ -76,90 +77,7 @@ class Game:
         self.player2.center_y = random.randint(0,SCREEN_HEIGHT)
 
 
-    def write_csv(self, filename, arrow, fire, knife, towardsOpponent, awayOpponent,
-                  movementChanges, biggestTrend,
-                  concurrent_game_id, player_type, player_simulation,
-                  iteration, healthChanges):
-        data = {
-            'Arrow': [arrow],
-            'Fire': [fire],
-            'knife': [knife],
-            'towardsOpponent': [towardsOpponent],
-            'awayOpponent': [awayOpponent],
-            'movementChanges': [movementChanges],
-            'biggestTrend': [biggestTrend],
-            'concurrent_game_id': [concurrent_game_id],
-            'player_type': [player_type],
-            'player_simulation': [player_simulation],
-            'iteration': [int(iteration)+1],
-            'healthChanges': [healthChanges],
-            'timestamp': [str(datetime.now())],
-        }
-
-        df = pd.DataFrame(data)
-
-        if os.path.exists(filename):
-            df.to_csv(str(filename), mode='a', header=False, index=False)
-
-        else:
-            df.to_csv(str(filename), mode='w', header=True, index=False)
-
-    def writeTrends(self):
-        # Write CSV
-        # Player 1
-        self.write_csv(
-            "player_1_log.csv",
-            self.player1.trends['arrow'],
-            self.player1.trends['fire'],
-            self.player1.trends['knife'],
-            self.player1.trends['towardsOpponent'],
-            self.player1.trends['awayOpponent'],
-            self.player1.trends['movementChanges'],
-            self.player1.trends['biggestTrend'],
-            self.process_id,
-            self.player1_type,
-            self.player_1_simulation,
-            self.rounds,
-            self.healthChanges,
-        )
-
-        # Player 2
-        self.write_csv(
-            "player_2_log.csv",
-            self.player1.trends['arrow'],
-            self.player1.trends['fire'],
-            self.player1.trends['knife'],
-            self.player1.trends['towardsOpponent'],
-            self.player1.trends['awayOpponent'],
-            self.player1.trends['movementChanges'],
-            self.player1.trends['biggestTrend'],
-            self.process_id,
-            self.player2_type,
-            self.player_2_simulation,
-            self.rounds,
-            self.healthChanges,
-        )
-
-
-        if self.written == 0 and self.games == self.totalGames:
-            with open("player1Trends.txt",'w+') as myfile:
-                myfile.write(json.dumps(self.player1.trends))
-                myfile.close()
-            with open("player2Trends.txt",'w+') as myfile:
-                myfile.write(json.dumps(self.player2.trends))
-                myfile.close()
-        else:
-            with open("player1Trends.txt",'a') as myfile:
-                myfile.write(json.dumps(self.player1.trends))
-                myfile.close()
-            with open("player2Trends.txt",'a') as myfile:
-                myfile.write(json.dumps(self.player2.trends))
-                myfile.close()    
-        self.written += 1    
-        self.player1.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
-        self.player2.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
-
-    def setup(self):
+    def setup(self):  #RunOneGame comes here first
         
         print("Running self.setup")
         self.player_list = []
@@ -269,10 +187,23 @@ class Game:
         elif self.player1_type == 'genn' or self.player1_type == 'agenn':
             self.player1 = GENN(KNIGHT_IMAGE,1)
             self.player1.net = self.player_1_nets[self.process_id]
-            self.player1.model = self.player1.net.createNetwork()
- #           print(self.player1.model.summary())
- #           import omegaml as om
- #           om.models.put(self.player1.model, self)
+#            print("self.player1.net",self.player1.net)
+            
+            if self.games < 9 :  ## Model has already been created, no need to do it again
+                self.player1.model = om.models.get('gen%dp%d' % (self.rounds, self.process_id))
+            else: ## if it's the first game in the round, create the network
+                self.player1.model = self.player1.net.createNetwork(self.rounds, self.process_id)
+                
+#            print("self.player1.model",self.player1.model)
+            ## NH - If the model is the best performer from previous gen,
+            # save it
+#            bestNetsCount = len(self.bestNets)
+#            print("BestNetsCount:",bestNetsCount)
+#            if self.rounds != 0 and self.process_id == 0:
+#                last_round = str(self.rounds - 1)
+#                model_name = str("Winner round" + last_round)
+#                print("Saving best model from last gen:",model_name,self.player1.model.summary())
+#                om.models.put(self.player1.model, model_name)
 
         else:
             self.player1 = Enemy(KNIGHT_IMAGE,1)
@@ -374,7 +305,7 @@ class Game:
         elif self.player2_type is 'genn':
             self.player2 = GENN(KNIGHT_IMAGE,1)
             self.player2.net = self.player_2_nets[self.process_id]
-            self.player2.model =  self.player2.net.createNetwork()
+            self.player2.model =  self.player2.net.createNetwork(self.rounds, self.process_id)
         else:
             self.player2 = Enemy(KNIGHT_IMAGE,1)
 
@@ -511,7 +442,7 @@ class Game:
         val = True
 
         self.curtime += 1
-        self.player1.update()
+        self.player1.update(self.rounds, self.process_id)
         self.player2.update()
         
         self.fitness = [self.player1.health - self.player2.health]
@@ -609,7 +540,7 @@ class Game:
             self.player2.knife_list.remove(self.knife)
         
         ## Reporting in console
-        interval = 1000
+        interval = 500
         if self.curtime % interval == 0:  ## added intermittent updates instead of every move
             self.end = datetime.now()
             try: avg = (self.end-self.start) / interval
@@ -649,30 +580,32 @@ class Game:
         #Print The Log Result
         progress_data = dict(
         	games = [self.games],
-        	net_id = str([self.player_1_nets[self.process_id]])[-15:],
-        	model_id = [self.player1.model],
-#        	player_1_type = [self.player1_type],
+#        	net_id = str([self.player_1_nets[self.process_id]])[-15:],
+#        	self_id2 = [str(self.player1)],
+#            self_id = [str(self)],
+            model_id = [str('gen%dp%d' % (self.rounds, self.process_id))],
+            player_1_type = [self.player1_type],
         	player_2_type = [self.player2_type],
-#        	conCurrentGames = [self.conGames],
-#        	player_1_simulation = [self.player_1_simulation],
-#        	player_2_simulation = [self.player_2_simulation],
+        	conCurrentGames = [self.conGames],
+        	player_1_simulation = [self.player_1_simulation],
+        	player_2_simulation = [self.player_2_simulation],
         	rounds = [self.rounds],
         	process_id = [self.process_id],
 #        	agenn_v = [self.player1.version],
-#        	player1_center_x = [self.player1.center_x],
-#        	player_1_center_y = [self.player1.center_y],
+        	player1_center_x = [self.player1.center_x],
+        	player_1_center_y = [self.player1.center_y],
         	player1_shield = [self.player1.shield],
-#        	player2_center_x = [self.player2.center_x],
-#        	player_2_center_y = [self.player2.center_y],
+        	player2_center_x = [self.player2.center_x],
+        	player_2_center_y = [self.player2.center_y],
         	player2_shield = [self.player2.shield],
 #        	player1_score = [self.player1_score],
 #        	player2_score = [self.player2_score],
-#        	player1_fireball = [player1_fireball],
-#        	player2_fireball = [player2_fireball],
-#        	player1_arrow = [player1_arrow],
-#        	player2_arrow = [player2_arrow],
-#        	player1_knife = [player1_knife],
-#        	player2_knife = [player2_knife],
+        	player1_fireball = [player1_fireball],
+        	player2_fireball = [player2_fireball],
+        	player1_arrow = [player1_arrow],
+        	player2_arrow = [player2_arrow],
+        	player1_knife = [player1_knife],
+        	player2_knife = [player2_knife],
         	game_move = [self.curtime], 
         	player1_health = [self.player1.health],
         	player2_health = [self.player2.health],
@@ -681,16 +614,20 @@ class Game:
         )
         
         ## NH made reporting less frequent for performance reasons
-        if self.curtime % 1 == 0:
-            dataFrame = pd.DataFrame(progress_data)
-            file_name = "data_log.csv"
-#            print("Writing data log")
+        ## also added direct export to omega
+        
+#        if self.curtime % 1 == 0:
+#            dataFrame = pd.DataFrame(progress_data)
+#            om.datasets.put(dataFrame, 'GENN_data', append=True)
+            
+        """file_name = "data_log.csv"
+        print("Writing data log")
    
-            if os.path.exists(file_name):
-                dataFrame.to_csv(file_name, mode='a', header=False, index=False)
+        if os.path.exists(file_name):
+            dataFrame.to_csv(file_name, mode='a', header=False, index=False)
 
-            else:
-                dataFrame.to_csv(file_name, mode='w', header=True, index=False)                
+        else:
+            dataFrame.to_csv(file_name, mode='w', header=True, index=False) """           
        
         # Check for end of game state
         if self.curtime >= max_moves:
