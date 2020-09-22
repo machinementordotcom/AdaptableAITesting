@@ -137,7 +137,7 @@ class GENN(arcade.Sprite):
         inputs_raw = [[self.center_x,
                        self.center_y,
                        self.opponent.center_x,
-                       self.opponent.center_y, # What??  Two entries for x, none for y.  Fixing now!
+                       self.opponent.center_y, 
                        self.health,
                        self.opponent.health,
                        self.total_time,
@@ -155,7 +155,7 @@ class GENN(arcade.Sprite):
         inputs_scaled = [[self.center_x / 1000,
                        self.center_y / 1000,
                        self.opponent.center_x / 1000,
-                       self.opponent.center_y / 1000, # What??  Two entries for x, none for y.  Fixing now!
+                       self.opponent.center_y / 1000, 
                        self.health / 10000,
                        self.opponent.health / 10000,
                        self.total_time / 1000,
@@ -175,18 +175,15 @@ class GENN(arcade.Sprite):
       
         inputs = np.asarray(inputs_scaled).reshape(-1,17)
         
-        ## prepare to run prediction in omega cloud (very slow for regular gameplay)
-        """model = om.runtime.require('gpu').model('gen%dp%d' % (self.rounds, self.process_id))
-        result = model.predict(inputs)
-        choices_raw = result.get()"""
-        
         ## Retrieve model from omega and run locally
 #        print("model ID:",self.rounds, self.process_id)
 
 #        model = om.models.get('gen%dp%d' % (self.rounds, self.process_id))
 #        choices_raw = model.predict(inputs)
         
-        choices_raw = self.model.predict(inputs, verbose=0)
+        choices_raw = self.model.predict(inputs)
+#        choices_raw = choices_raw.get()
+
 #        print("Choices - scaled predictions:",choices_raw[0][0],choices_raw[1][0])
         
         ## Separate move prediction and un-scale it
@@ -248,22 +245,17 @@ class GENN(arcade.Sprite):
         
 #        print("\nModel input:\n\n:",inputs,"\n\nModel predicts:\n\n",np.array(choices))
 
-#        if self.curtime % 1 == 0:  #enabled for every move
-#            dataFrame = pd.DataFrame(io_stream)
+        if self.curtime % 1 == 0:  #enabled for every  move
+            dataFrame = pd.DataFrame(io_stream)
 #            om.datasets.put(dataFrame, 'GENN_io_stream', append=True)
             
-        """file_name = "io_stream.csv" # NH - bypassed in order to create stream set in om
+            file_name = "io_stream.csv" 
    
-        if os.path.exists(file_name):
+            if os.path.exists(file_name):
                dataFrame.to_csv(file_name, mode='a', header=False, index=False)
+            else:
+                dataFrame.to_csv(file_name, mode='w', header=True, index=False)  
 
-        else:
-            dataFrame.to_csv(file_name, mode='w', header=True, index=False)"""  
-
-        
-#        model = om.runtime.model(self)
-#        choices = model.predict(np.asarray(inputs)).get()
-        
         ## The coordinate predictions made in the first two fields 
         # are multiplied by static speed and the player moves there
         self.center_x += MOVEMENT_SPEED * choices[0][0] #[0]
@@ -289,20 +281,6 @@ class GENN(arcade.Sprite):
         self.change_x = -math.cos(self.angle)*MOVEMENT_SPEED
         self.change_y = -math.sin(self.angle)*MOVEMENT_SPEED
    
- 
-        ## NH - this entire section allowed for games to transpire 
-        # even though no actual predictions were taking place.
-        # The models were returning 1-1-1-1-1 on every single move
-        # due to lack of variable scaling.  Even so, the code below
-        # created random attacks on opponents which would succeed
-        # randomly.
-        
-        ## First, the random moves loop applies to every move after 
-        ## if self.curtime >= 30:
-        
-        ## Making a change here to use random moves ONLY within the first 30
-        ## and use model predictions every other time.
-        
         if self.curtime <= 30:
             
             ## If all three attack prediction variables are equal,

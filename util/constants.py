@@ -1,7 +1,6 @@
 
 import sys
 import os
-#sys.stdout = open(os.devnull, 'w')
 import arcade
 import tensorflow as tf
 import numpy as np
@@ -10,8 +9,6 @@ import multiprocessing
 from keras.layers import Dense, Input, concatenate
 from keras.models import Model
 import omegaml as om
-
-#sys.stdout = sys.__stdout__
 
 RANDOM_SEED = 1
 SPRITE_SCALING = 0.5
@@ -43,9 +40,6 @@ MID_SPEED_HANDICAP = .09#1
 MAGE_IMAGE = 'images/mage.png'
 KNIGHT_IMAGE = 'images/lilknight.png'
 
-# def decideWinner(num):
-#     health = float(num)
-#     if health < 
 class Counter(object):
     def __init__(self, initval=0):
         self.val = multiprocessing.RawValue('i', initval)
@@ -103,8 +97,12 @@ class Network:
         
     ## NH - corrected structure of output layers - instead of 5 separate layers, there are now
     # 2 layers, one for moves and one for attacks, with 2 and 3 output variables respectively
+    
     def createNetwork(self, rounds, process_id):
-
+        
+        ## If network already exists, retrieve that model from omega and return it
+#        print("CreateNetwork object passed in (self):",self)
+        
         layer = tf.keras.layers.Dense(1, input_shape=(17,)) # NH - corrected shape of input tensor
 #       print("layer var",layer)
         inputs = keras.Input(shape=(17,))
@@ -136,8 +134,9 @@ class Network:
                               outputs=outputs)
                
         ## Save the model (either H5 or omega) for later access
-        model.compile()
+        model.compile('adam','mean_squared_error')
         om.models.put(model, 'gen%dp%d' % (rounds, process_id))
+#        model = om.runtime.require('gpu').model('gen%dp%d' % (rounds, process_id))
         print("Model gen%dp%d stored in omega cloud" % (rounds, process_id))
 
         counter = 0

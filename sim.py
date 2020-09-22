@@ -44,7 +44,6 @@ class Game:
         self.grid = np.zeros(shape = (SCREEN_HEIGHT, SCREEN_WIDTH))
         self.curtime = 0
         self.written = 0
-#        self.trendTracking = trendTracking
         self.start = time.time()
         self.totalGames = games
         self.games = games
@@ -85,8 +84,6 @@ class Game:
         self.fireball_list = []
         self.knife_list = []
         self.curtime = 0
-#        print("Move",str(self.curtime))
-#        self.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
 
         # Set up player1
         print("Setting up player1 as",self.player1_type,self.player_1_simulation)
@@ -98,7 +95,6 @@ class Game:
             self.player1 = ShortRangePlayer(KNIGHT_IMAGE,1)
         elif self.player1_type.lower() == 'master':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = None
@@ -120,7 +116,6 @@ class Game:
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'average':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'both'
@@ -140,7 +135,6 @@ class Game:
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'random':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'both'
@@ -161,7 +155,6 @@ class Game:
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'train':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'shoot'
@@ -187,24 +180,14 @@ class Game:
         elif self.player1_type == 'genn' or self.player1_type == 'agenn':
             self.player1 = GENN(KNIGHT_IMAGE,1)
             self.player1.net = self.player_1_nets[self.process_id]
-#            print("self.player1.net",self.player1.net)
             
             if self.games < 9 :  ## Model has already been created, no need to do it again
                 self.player1.model = om.models.get('gen%dp%d' % (self.rounds, self.process_id))
+                #om.runtime.require('gpu').model('gen%dp%d' % (self.rounds, self.process_id))
             else: ## if it's the first game in the round, create the network
                 self.player1.model = self.player1.net.createNetwork(self.rounds, self.process_id)
+                print("Creating new network")
                 
-#            print("self.player1.model",self.player1.model)
-            ## NH - If the model is the best performer from previous gen,
-            # save it
-#            bestNetsCount = len(self.bestNets)
-#            print("BestNetsCount:",bestNetsCount)
-#            if self.rounds != 0 and self.process_id == 0:
-#                last_round = str(self.rounds - 1)
-#                model_name = str("Winner round" + last_round)
-#                print("Saving best model from last gen:",model_name,self.player1.model.summary())
-#                om.models.put(self.player1.model, model_name)
-
         else:
             self.player1 = Enemy(KNIGHT_IMAGE,1)
 
@@ -240,7 +223,6 @@ class Game:
         elif self.player2_type.lower() == 'master':
             self.player2 = DynamicController(KNIGHT_IMAGE,1)
             self.player2.conGames = self.conGames
-#            self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player2.id = "player2"
             self.player2.adjusting = None
             if self.rounds == 0:
@@ -262,7 +244,6 @@ class Game:
         elif self.player2_type.lower() == 'average':
             self.player2 = DynamicController(KNIGHT_IMAGE,1)
             self.player2.conGames = self.conGames
-#            self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player2.id = "player2"
             self.player2.adjusting = 'both'
             if self.rounds == 0:
@@ -282,7 +263,6 @@ class Game:
         elif self.player2_type.lower() == 'random':
             self.player2 = DynamicController(KNIGHT_IMAGE,1)
             self.player2.conGames = self.conGames
-#            self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player2.id = "player2"
             self.player2.adjusting = 'both'
             if self.rounds == 0:
@@ -333,7 +313,6 @@ class Game:
         self.player2.currentTrend = 0
       
         print("Game setup complete for Process ID/Network: ",str(self.process_id))
-#        print("\nModel summary:\n",self.player1.model.summary())
     
     def end_game(self):
  
@@ -373,7 +352,7 @@ class Game:
         if self.games == 0: 
             print("Round over for player",str(self.process_id),", calculating final fitness")
             self.health_diff = self.health_diff / self.totalGames  # Returns average fitness across all games in round
-            print("Final fitness is",self.health_diff,"totalGames is",self.totalGames)
+            print("Final fitness is",self.health_diff)
             return self.health_diff
         
         else: 
@@ -560,23 +539,24 @@ class Game:
 
         # aGENN Supervisor
         # NH - making change to use current difference as only metric
-        """
-        current_health_differ = self.player1.health - self.player2.health
+        
+        current_fitness = self.player1.health - self.player2.health
         # NH - changed from 'player_1_simulation
-        if self.player1_type == 'agenn' and self.curtime % 1000 == 0:
-                print("\nat move",self.curtime
-                      "Player",self.process_id,
-                      "\nhealth diff is:",current_health_differ)
-                if current_health_differ < -100:
-                    self.player1.version += 1
-                    print("Supervisor sent player",
-                      str(self.process_id),
-                      "back for training. Now player is version",
-                      str(self.player1.version))
-                    self.player1.net = createChildNets(self.player1.net, 1)
-                    self.player1.net = mutateNets(self.player1.net)[0]
-                    self.player1.model =  self.player1.net.createNetwork()
-           """                
+        if self.player1_type == 'agenn' and self.curtime == 250 and self.rounds > 0:
+            print("\nAt move",self.curtime,
+                  "Player",self.process_id,
+                  "\nfitness is:",current_fitness)
+            if current_fitness < -50:
+                self.player1.version += 1
+                print("Supervisor sent player",
+                  str(self.process_id),
+                  "back for training. Now player is version",
+                  str(self.player1.version))
+                # Create aGENN log to record all Supervisor actions
+                # Write a subroutine to access stream and train model
+                model_id = 'gen%dp%d' % (self.rounds, self.process_id)
+                aGENN_train(model_id, self.rounds)
+                           
         #Print The Log Result
         progress_data = dict(
         	games = [self.games],
@@ -591,7 +571,7 @@ class Game:
         	player_2_simulation = [self.player_2_simulation],
         	rounds = [self.rounds],
         	process_id = [self.process_id],
-#        	agenn_v = [self.player1.version],
+        	agenn_v = [self.player1.version],
         	player1_center_x = [self.player1.center_x],
         	player_1_center_y = [self.player1.center_y],
         	player1_shield = [self.player1.shield],
@@ -614,20 +594,16 @@ class Game:
         )
         
         ## NH made reporting less frequent for performance reasons
-        ## also added direct export to omega
+        ## also added direct export to omega (very slow)
         
-#        if self.curtime % 1 == 0:
-#            dataFrame = pd.DataFrame(progress_data)
-#            om.datasets.put(dataFrame, 'GENN_data', append=True)
-            
-        """file_name = "data_log.csv"
-        print("Writing data log")
-   
-        if os.path.exists(file_name):
-            dataFrame.to_csv(file_name, mode='a', header=False, index=False)
+        if self.curtime % 1 == 0:
+            dataFrame = pd.DataFrame(progress_data)
+            file_name = "data_log.csv"
 
-        else:
-            dataFrame.to_csv(file_name, mode='w', header=True, index=False) """           
+            if os.path.exists(file_name):
+                dataFrame.to_csv(file_name, mode='a', header=False, index=False)
+            else:
+                dataFrame.to_csv(file_name, mode='w', header=True, index=False)
        
         # Check for end of game state
         if self.curtime >= max_moves:
@@ -662,15 +638,5 @@ class Game:
             self.player2.score += 1 
             val = self.end_game()
                            
-#        if self.player1.health == self.player1_previous_health and self.player2_previous_health == self.player2.health: self.healthChanges += 1
-#        else: self.healthChanges = 0
-        
-#        if self.healthChanges > 1500: 
-#            self.jitter()
-#            self.healthChanges = 0
-            
-#        self.player1_previous_health = self.player1.health
-#        self.player2_previous_health = self.player2.health
-        
         return val
         

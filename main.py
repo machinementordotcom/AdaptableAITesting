@@ -1,7 +1,6 @@
 
 import sys
 import os
-#sys.stdout = open(os.devnull, 'w') # this cancels all output and prevents writing to the console
 from MyGame import *
 import arcade
 from sim import *
@@ -19,64 +18,82 @@ import json
 import re 
 import matplotlib.ticker as ticker
 import omegaml as om
-#sys.stdout = sys.__stdout__
 
 def runOneGame(a):
 
-    max_moves = 500 # High performing models usually prevail within 1000 moves
-    print("runOneGame commencing")
+    max_moves = 1000 # High performing models usually prevail within 1000 moves
+#    print("runOneGame commencing")
     x = Game(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11],a[12],a[13])
-    print("setting up players")
+#    print("setting up players")
     x.setup()
     val = True
-    print("Game Play Started...")
+#    print("Game Play Started...")
     while val == True:
-#        print("Playing...")
         val = x.update(max_moves)
     return val    
-    print('runOneGame OVER') 
+#    print('runOneGame OVER') 
 
 def main(args):
     
     graphics = 'no'
     graphOutput = 'no'
     train = 'yes'
-#    trendTracking = 'no'
     evolutions = True
     
     ## Remove existing io_stream, if applicable
     try:
+        if os.path.exists("io_stream.csv"):
+            os.remove("io_stream.csv")
+            print("io_stream.csv found and removed")
+        else:
+            print("io_stream.csv not found")
+        
         om.datasets.drop('GENN_io_stream')
         print('\nio stream dataset dropped\n')
     except:
         print("\nio stream dataset not found or unable to drop\n")
         pass
+    
     try:
+        if os.path.exists("data_log.csv"):
+            os.remove("data_log.csv")
+            print("data_log.csv found and removed")
+        else:
+            print("data_log.csv not found")
+                
         om.datasets.drop('GENN_data')
         print('\nGENN game dataset dropped\n')
     except:
         print("\nGENN game dataset not found or unable to drop\n")
         pass
     
+    try:
+        om.datasets.drop('GENN_model_log')
+        print('\nGENN model_log dropped\n')
+    except:
+        print("\nGENN model log not found or unable to drop\n")
+        pass
+    
     ## Delete all models from previous games
     for i in range(10):
-        for j in range(10):
+        for j in range(20):
             try:
-                om.models.drop('gen%did%d' % (i, j))
+                om.models.drop('gen%dp%d' % (i, j))
+                print("All models dropped")
             except:
-                continue    
+                continue  
+                print("Unable to drop models")
         
     if train == 'yes':
         # Game/Network will be played in the same time per generation
-        conCurrentGame = 20  # Must be at least 20 for topTen to function (min 2 nets)
+        conCurrentGame = 30  # Must be at least 20 for topTen to function (min 2 nets)
         # Total Generation 
-        generations = 3
+        generations = 9
         simulation_player_1 = 'genn'
         simulation_player_2 = 'fsm'
         player_2_type = 'range'
         graphics = 'no'
-        player_1_type = 'genn'
-#        trendTracking = 'no'
+        player_1_type = 'agenn'
         graphOutput = 'no'
         games_per_network = 9
         train = 'yes'
@@ -154,10 +171,13 @@ def main(args):
         bestNets = []  # NH - bestNets added
 
         for rounds in range(generations):
+            
+            from keras import backend as K 
+            K.clear_session()
 
             print("Total rounds %d out of %d" % (rounds, generations))
-            print("Player1 Nets length:", str(len(player_1_nets)))
-            print("at beginning of round:\n",player_1_nets)
+#            print("Player1 Nets length:", str(len(player_1_nets)))
+#            print("at beginning of round:\n",player_1_nets)
 #            time.sleep(30)
             
             if evolutions == True and train == 'yes':
@@ -169,6 +189,17 @@ def main(args):
                         pass  # Placeholder
                         
                     elif rounds != 0:
+                        
+                        # Export the data log to omega storage - can be run at any time
+                        data = pd.read_csv("data_log.csv")
+                        om.datasets.put(data, 'GENN_data', append=False, n_jobs=8)
+                        print(data.shape)
+                        
+                        # Save data stream
+                        stream = pd.read_csv("io_stream.csv")
+                        om.datasets.put(stream, 'GENN_io_stream', append=False, n_jobs=8)
+                        print(stream.shape)
+                        
                         
                         print("evolutionHealth:",str(evolutionHealth))
                         
@@ -182,20 +213,25 @@ def main(args):
                                             key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.3):] 
                         print("bestThirty:",str(bestThirty))
                         
-                        evolutionHealth = []
-                        print("evolutionHealth is reset to",evolutionHealth)
-                        #time.sleep(10)
-                        
                         ## Retrieve the best 10 and 30% as a list of networks
                         bestTenNets = list(itemgetter(*bestTen)(player_1_nets)) 
                         print("These are the top 10% of Nets from previous round (top 10%):",str(bestTen))
                         bestNets = bestTenNets
                         
-                        ## Save best nets - recursively save each to omega using list
-                        for net in bestNets:
-                            print("bestNets net:",net)
-                            ## How to reference the model?
-                        
+                        ## Log best nets - recursively save each to omega using list
+                        rank = (len(bestTen))
+                        for net in bestTen:
+                            model_log = dict(
+                                round = [rounds - 1],
+                                player = [net],
+                                rank = [rank],
+                                fitness = [evolutionHealth[net]],
+                                timestamp = [datetime.now()]
+                            )
+                            dataFrame = pd.DataFrame(model_log)
+                            om.datasets.put(dataFrame, 'GENN_model_log', append=True)
+                            rank -= 1
+                                                    
                         # NH - changed 'newNets' to 'bestThirtyNets'
                         bestThirtyNets = list(itemgetter(*bestThirty)(player_1_nets)) 
                         print("These are the top 30% of Nets from previous round (top 10%):",str(bestThirty))
@@ -217,6 +253,15 @@ def main(args):
                         print("These are player_1_nets for next round:",player_1_nets)
                         #time.sleep(30)
                         
+                        evolutionHealth = []
+                        print("evolutionHealth is reset to",evolutionHealth)
+                        #time.sleep(10)
+                                                
+                        ## Create training set from top player of previous round
+                        create_training_set(rounds)
+                        print("Training set created from round %d top player" % (rounds - 1))
+                        
+                        
                 if player_2_type == 'genn':
                     #if rounds % 9 == 0 and rounds != 0:
                     if rounds != 0:
@@ -233,6 +278,7 @@ def main(args):
 #            ex = concurrent.futures.ProcessPoolExecutor(max_workers=pools)  
             ex = multiprocessing.Pool(pools) 
 
+            
             result = ex.map(runOneGame,[ x + [i - 1]  \
                                        for i,x in enumerate([x for x in \
                                                              [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,
@@ -242,7 +288,6 @@ def main(args):
                                                              simulation_player_1,simulation_player_2]] *conCurrentGame  ],1) ]) #chunksize
             
             print("Round result set:",result)
-            
 
             evolutionHealth = [float(i) for i in result]
                   
@@ -261,22 +306,10 @@ def main(args):
             writeNetworks(player_2_nets)
         print("player 1 (" + player_1_type + "):",player1Wins)
         print("player 2 (" + player_2_type + "):",player2Wins)
-        """
-        if train == 'yes':
-            print("\t Short Wins: ",shortWins)
-            print("\t mid Wins: ",midWins)
-            print("\t range Wins: ",rangeWins)
-        """
+
         print("Draws: ",draws)
         print("Average Health Difference: ",round(abs(leftOverHealth) / (conCurrentGame * generations),4))
         print("Total Time: ",round(time.time() - start,4))
-"""        
-    if graphOutput =='yes':
-        if player_1_type not in ['short','mid','range']:
-            createGraphs(1)
-        if player_2_type not in ['short','mid','range']:
-            createGraphs(2)
-"""
 
 if __name__ == "__main__":
     main(sys.argv)

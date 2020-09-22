@@ -4,6 +4,7 @@ import numpy as np
 from util.constants import * 
 import csv
 import ast
+import omegaml as om
 
 def createNets(conCurrentGame): # creates new network with randomized layers and nodes
 
@@ -121,3 +122,78 @@ def readNets(nets):
                 temp.append(ast.literal_eval(j))
             layers.append(Layer(temp))
         return [Network(layers)] * nets  
+    
+def aGENN_train(model_id, rounds):
+    
+    ## Train the model and save to omega
+    name = model_id
+    result = om.runtime.require('gpu').model(model_id).fit('x_train',
+                                                           'y_train',
+                                                           epochs=10,
+                                                           batch_size=256)
+    try:                                                       
+        result.get()
+    except:
+        print("Training not run due to exception")
+
+def create_training_set(rounds):
+
+    ## Create dataset for training
+    ## Step 1: Filter stream on model ID
+    
+    last_round = rounds - 1
+    mdf = om.datasets.get('GENN_io_stream')
+    flt = mdf['model_id'] == 'gen%dp0' % (last_round) 
+    stream = mdf[flt]
+
+    x = stream[["center_x",
+              "center_y",
+              "opponent_center_x",
+              "opponent_center_y",
+              "player_health",
+              "opponent_health",
+              "total_time",
+              "player_shield",
+              "opponent_shield",
+              "opponent_hitbox",
+              "curtime",
+              "proj_1_x",          
+              "proj_1_y",             
+              "proj_2_x",             
+              "proj_2_y",             
+              "proj_3_x",             
+              "proj_3_y"
+             ]]
+
+    y = stream[["predict1",
+              "predict2",
+              "predict3",
+              "predict4",
+              "predict5"]]
+    
+    ## Step 3: Scale values inputs and outputs
+
+    x['center_x'] = x['center_x'] / 1000
+    x['center_y'] = x['center_y'] / 1000
+    x['opponent_center_x'] = x['opponent_center_x'] / 1000
+    x['opponent_center_y'] = x['opponent_center_y'] / 1000
+    x['player_health'] = x['player_health'] / 10000
+    x['opponent_health'] = x['opponent_health'] / 10000
+    x['total_time'] = x['total_time'] / 1000
+    x['opponent_hitbox'] = x['opponent_hitbox'] / 10
+    x['curtime'] = x['curtime'] / 5000
+    x['proj_1_x'] = x['proj_1_x'] / 1000
+    x['proj_1_y'] = x['proj_1_y'] / 1000
+    x['proj_2_x'] = x['proj_2_x'] / 1000
+    x['proj_2_y'] = x['proj_2_y'] / 1000
+    x['proj_3_x'] = x['proj_3_x'] / 1000
+    x['proj_3_y'] = x['proj_3_y'] / 1000
+
+    y['predict1'] = y['predict1'] / 1000
+    y['predict2'] = y['predict2'] / 1000
+    
+    x = np.asarray(x).reshape(-1,17)
+    y = np.asarray(y).reshape(-1,5)
+    
+    om.datasets.put(x, 'x_train', append=False)
+    om.datasets.put(y, 'y_train', append=False)
