@@ -1,16 +1,13 @@
 
-import omegaml as om
-import sys
-import csv 
-import arcade
-import numpy as np
+#from csv import writer
+from numpy import array, average, asarray
 from util.constants import *
-import math
-import random
-import pandas as pd
-import time
+from math import sqrt, atan2, sin, cos, radians, degrees
+from os import path
+from pandas import DataFrame
+from arcade import Sprite
 
-class GENN(arcade.Sprite):
+class GENN(Sprite):
 
     def shootarrow(self):
       arrow = Arrow("images/arrow.png",.1)
@@ -19,8 +16,8 @@ class GENN(arcade.Sprite):
       arrow.start_x = self.center_x # for tracking 
       arrow.start_y = self.center_y
       arrow.angle = self.angle-90
-      arrow.change_x = -ARROW_SPEED*math.sin(math.radians(self.angle))
-      arrow.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
+      arrow.change_x = -ARROW_SPEED*sin(radians(self.angle))
+      arrow.change_y = ARROW_SPEED*cos(radians(self.angle))
       arrow.vel = ARROW_SPEED
       arrow.box = BOX
 
@@ -28,11 +25,11 @@ class GENN(arcade.Sprite):
 
       hit = HitBox("images/fire.png")
       hit._set_alpha(0)
-      hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
+      hit._set_height(sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
       hit._set_width(ARROW_IMAGE_HEIGHT)
       hit.angle = self.angle
-      hit.center_x = self.center_x + -math.sin(math.radians(hit.angle)) * hit.height/2
-      hit.center_y = self.center_y + math.cos(math.radians(hit.angle)) * hit.height/2
+      hit.center_x = self.center_x + -sin(radians(hit.angle)) * hit.height/2
+      hit.center_y = self.center_y + cos(radians(hit.angle)) * hit.height/2
       hit.vel = ARROW_SPEED
       hit.box = BOX
       arrow.hit = hit
@@ -49,18 +46,18 @@ class GENN(arcade.Sprite):
       fireball.start_x = self.center_x # for tracking 
       fireball.start_y = self.center_y # fireball distance
       fireball.angle = self.angle-90
-      fireball.change_x = -ARROW_SPEED*math.sin(math.radians(self.angle))
-      fireball.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
+      fireball.change_x = -ARROW_SPEED*sin(radians(self.angle))
+      fireball.change_y = ARROW_SPEED*cos(radians(self.angle))
       fireball.vel = ARROW_SPEED
       fireball.box = BOX
       self.fireball_list.append(fireball)
       hit = HitBox("images/fire.png")
       hit._set_alpha(0)
-      hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
+      hit._set_height(sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
       hit._set_width(ARROW_IMAGE_HEIGHT)
       hit.angle = self.angle
-      hit.center_x = self.center_x + -math.sin(math.radians(hit.angle)) * hit.height/2
-      hit.center_y = self.center_y + math.cos(math.radians(hit.angle)) * hit.height/2
+      hit.center_x = self.center_x + -sin(radians(hit.angle)) * hit.height/2
+      hit.center_y = self.center_y + cos(radians(hit.angle)) * hit.height/2
       hit.vel = ARROW_SPEED
       hit.box = BOX
       fireball.hit = hit
@@ -75,9 +72,9 @@ class GENN(arcade.Sprite):
       self.knife_num += 1 # prevents multiple knifes from being created
       self.knife_list.append(knife)
 
-    def writeWeights(self):
+    """def writeWeights(self):
       with open("GENN/weightsDynamicController" + self.id + "-" + str(self.conCurrentGameId) + ".csv", 'w') as myfile:
-         wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+         wr = writer(myfile, quoting=csv.QUOTE_ALL)
          for i in range(2):
             wr.writerow(self.weights[i])
             
@@ -91,8 +88,8 @@ class GENN(arcade.Sprite):
                  for row in reader:
                      tempWeights[weightType].append([float(i) for i in row])
                      weightType +=1
-         self.weights[0] = np.average(np.array(tempWeights[0]),axis = 0).tolist()
-         self.weights[1] = np.average(np.array(tempWeights[1]),axis = 0).tolist()
+         self.weights[0] = average(array(tempWeights[0]),axis = 0).tolist()
+         self.weights[1] = average(array(tempWeights[1]),axis = 0).tolist()
      else:
          with open(path) as csvfile:
             reader = csv.reader(csvfile)
@@ -100,11 +97,13 @@ class GENN(arcade.Sprite):
             for row in reader:
                self.weights[weightType] = [float(i) for i in row]
                weightType +=1
-                
+               """
+               
     def update(self, rounds=None, process_id=None):
-        self.rounds = rounds
-        self.process_id = process_id
+        
         self.curtime += 1
+        curtime = self.curtime
+        
         if len(self.opponent_hitbox_list) >= 3:
             opp_proj_1_x = self.opponent_hitbox_list[0].center_x
             opp_proj_1_y = self.opponent_hitbox_list[0].center_y
@@ -170,89 +169,56 @@ class GENN(arcade.Sprite):
                        opp_proj_3_x / 1000, 
                        opp_proj_3_y / 1000
                          ]]
-         
-#        print("inputs_scaled",inputs_scaled)
-      
-        inputs = np.asarray(inputs_scaled).reshape(-1,17)
+               
+        inputs = asarray(inputs_scaled).reshape(-1,17)
         
-        ## Retrieve model from omega and run locally
-#        print("model ID:",self.rounds, self.process_id)
+        model = self.model
+        choices_raw = model.predict(inputs)
 
-#        model = om.models.get('gen%dp%d' % (self.rounds, self.process_id))
-#        choices_raw = model.predict(inputs)
-        
-        choices_raw = self.model.predict(inputs)
-#        choices_raw = choices_raw.get()
-
-#        print("Choices - scaled predictions:",choices_raw[0][0],choices_raw[1][0])
-        
-        ## Separate move prediction and un-scale it
-        
-#        choices1 = np.asarray(list(choices_raw[0][0])).reshape(2,-1)
-#        choices2 = np.asarray(list(choices_raw[1][0])).reshape(3,-1)
-#        print("Choices reshaped",choices1,choices2)
-#        print(self.model.summary())
-#        print(choices_raw)
         choices = [[choices_raw[0][0] * 1000,
                     choices_raw[0][1] * 1000,
                     choices_raw[0][2],
                     choices_raw[0][3],
                     choices_raw[0][4]
                    ]]
-#        print("Choices:",choices)
-        
-#        print(choices[0][0],choices[0][1],choices[0][2],choices[0][3],choices[0][4])
-        
-#        print("Choices unscaled",choices)
-#        time.sleep(1)
-        
-#        choices = choices_unscaled.reshape(1,5)
-#        print("Choices are",choices)
-#        time.sleep(1)
         
         # Prepare model output for stream
-        choices_a = np.asarray(choices).reshape(-1)
-#        print("Choices:",choices_a)
+        choices_a = asarray(choices).reshape(-1)
 
-        #Print The Log Result
-        io_stream = dict(
-            self_id = [str(self)],
-            model_id = [str('gen%dp%d' % (self.rounds, self.process_id))],
-            center_x = [self.center_x],
-            center_y = [self.center_y],
-            opponent_center_x = [self.opponent.center_x],
-            opponent_center_y = [self.opponent.center_y],
-            player_health = [self.health],
-            opponent_health = [self.opponent.health],
-            total_time = [self.total_time],
-            player_shield = [self.shield],
-            opponent_shield = [self.opponent.shield],
-            curtime = [self.curtime],
-            opponent_hitbox = [len(self.opponent_hitbox_list)],
-            proj_1_x = [opp_proj_1_x],
-            proj_1_y = [opp_proj_1_y],
-            proj_2_x = [opp_proj_2_x],
-            proj_2_y = [opp_proj_2_y],
-            proj_3_x = [opp_proj_3_x], 
-            proj_3_y = [opp_proj_3_y],
-            predict1 = [choices[0][0]],
-            predict2 = [choices[0][1]],
-            predict3 = [choices[0][2]],
-            predict4 = [choices[0][3]],
-            predict5 = [choices[0][4]]
+        if not self.curtime % 1 == 0:  #enabled for every  move
+            pass
+        else:
+            #Print The Log Result
+            io_stream = dict(
+                self_id = [str(self)],
+                model_id = [str('gen%dp%d' % (rounds, process_id))],
+                center_x = [self.center_x],
+                center_y = [self.center_y],
+                opponent_center_x = [self.opponent.center_x],
+                opponent_center_y = [self.opponent.center_y],
+                player_health = [self.health],
+                opponent_health = [self.opponent.health],
+                total_time = [self.total_time],
+                player_shield = [self.shield],
+                opponent_shield = [self.opponent.shield],
+                curtime = [self.curtime],
+                opponent_hitbox = [len(self.opponent_hitbox_list)],
+                proj_1_x = [opp_proj_1_x],
+                proj_1_y = [opp_proj_1_y],
+                proj_2_x = [opp_proj_2_x],
+                proj_2_y = [opp_proj_2_y],
+                proj_3_x = [opp_proj_3_x], 
+                proj_3_y = [opp_proj_3_y],
+                predict1 = [choices[0][0]],
+                predict2 = [choices[0][1]],
+                predict3 = [choices[0][2]],
+                predict4 = [choices[0][3]],
+                predict5 = [choices[0][4]]
                                  )
-#        print(io_stream)        
-        
-#        print("\nModel input:\n\n:",inputs,"\n\nModel predicts:\n\n",np.array(choices))
-
-        if self.curtime % 1 == 0:  #enabled for every  move
-            dataFrame = pd.DataFrame(io_stream)
-#            om.datasets.put(dataFrame, 'GENN_io_stream', append=True)
-            
-            file_name = "io_stream.csv" 
-   
-            if os.path.exists(file_name):
-               dataFrame.to_csv(file_name, mode='a', header=False, index=False)
+            dataFrame, file_name = DataFrame(io_stream), "io_stream.csv"
+               
+            if path.exists(file_name):
+                dataFrame.to_csv(file_name, mode='a', header=False, index=False)
             else:
                 dataFrame.to_csv(file_name, mode='w', header=True, index=False)  
 
@@ -276,33 +242,17 @@ class GENN(arcade.Sprite):
         y_diff = self.opponent.center_y - self.center_y
         
         # Further adjustments are made for movement
-        self.d = math.sqrt(x_diff**2 +y_diff**2)
-        self.angle = math.degrees(math.atan2(y_diff,x_diff))-90
-        self.change_x = -math.cos(self.angle)*MOVEMENT_SPEED
-        self.change_y = -math.sin(self.angle)*MOVEMENT_SPEED
+        self.d = sqrt(x_diff**2 +y_diff**2)
+        self.angle = degrees(atan2(y_diff,x_diff))-90
+        self.change_x = -cos(self.angle)*MOVEMENT_SPEED
+        self.change_y = -sin(self.angle)*MOVEMENT_SPEED
    
-        if self.curtime <= 30:
-            
-            ## If all three attack prediction variables are equal,
-            # then choose an attack at random
-            if choices[0][2] == choices[0][3] == choices[0][4]:
-                attack = random.choices(['short','mid','range'])[0]
-                if attack == 'short': 
-                    self.shortattack()
-                    self.trends['knife'] = self.trends['knife'] + 1
-                elif attack == 'mid': 
-                    self.throwfire()
-                    self.trends['fire'] = self.trends['fire'] + 1    
-                else: 
-                    self.shootarrow()
-                    self.trends['arrow'] = self.trends['arrow'] + 1
-                    
         ## NH - changed to make most inaction most likely
         # Previously, games were ending within 90 moves due to
         # default (arrow) attacks getting lucky.  This does not
         # differentiate GENN networks.
-        elif choices[0][2] == choices[0][3] == choices[0][4]:
-            pass
+        if choices[0][2] == choices[0][3] == choices[0][4]:
+            self.shootarrow()
         
         ## If it's still within 30 moves of the game's beginning, then
         # if var1 is greater than var2 and var1 is greater than var3,
@@ -316,7 +266,7 @@ class GENN(arcade.Sprite):
             
         ## otherwise shoot an arrow and reset the game_move variable to zero    
         else:
-            self.shootarrow()
+            pass
             
         for arrow in self.arrow_list:
             if arrow.center_x>SCREEN_WIDTH + 10 \
@@ -327,10 +277,12 @@ class GENN(arcade.Sprite):
             for fireball in self.fireball_list:
                 diff_x = fireball.start_x-fireball.center_x
                 diff_y = fireball.start_y-fireball.center_y
-                fireball_dist = math.sqrt(diff_x**2 + diff_y**2)
+                fireball_dist = sqrt(diff_x**2 + diff_y**2)
                 if fireball_dist>200:
                     self.fireball_list.remove(fireball)
 
-        if self.health <= PLAYER_HEALTH*.5 and self.shield < 1:
+        if not self.health <= PLAYER_HEALTH*.5 and self.shield < 1:
+            pass
+        else:
             self.equipshield()
 

@@ -1,11 +1,6 @@
 
-import sys
-import os
-import arcade
-import tensorflow as tf
-import numpy as np
-from tensorflow import keras
-import multiprocessing
+from arcade import Sprite
+from keras import layers
 from keras.layers import Dense, Input, concatenate
 from keras.models import Model
 import omegaml as om
@@ -42,54 +37,49 @@ KNIGHT_IMAGE = 'images/lilknight.png'
 
 class Counter(object):
     def __init__(self, initval=0):
-        self.val = multiprocessing.RawValue('i', initval)
-        self.lock = multiprocessing.Lock()
-
-    def increment(self):
-        with self.lock:
-            self.val.value += 1
+        pass
+#        self.val = multiprocessing.RawValue('i', initval)
+#        self.lock = multiprocessing.Lock()
 
     @property
     def value(self):
         return self.val.value
- 
-class HitBox(arcade.Sprite):
+    
+class HitBox(Sprite):
     z = 500
     y = ARROW_IMAGE_HEIGHT
-    
-class Knife(arcade.Sprite):
+
+class Knife(Sprite):
     def update(self, rounds=None, process_id=None):
         self.center_x += self.change_x
         self.center_y += self.change_y
 
-class Arrow(arcade.Sprite):
+class Arrow(Sprite):
     def update(self, rounds=None, process_id=None):
         self.center_x += self.change_x
         self.center_y += self.change_y
 
-class Fireball(arcade.Sprite):
+class Fireball(Sprite):
     def update(self, rounds=None, process_id=None):
         self.center_x += self.change_x
         self.center_y += self.change_y
-
 class ArrowSimulated:
     def __init__(self, x, y, v, box):
         self.x = x 
         self.y = y
         self.vel = v
         self.box = box
-
 class FireballSimulated:
     def __init__(self, x, y, v, box):
         self.x = x 
         self.y = y
         self.vel = v
         self.box = box
-        
+
 class Layer:
     def __init__(self, weights):
         self.weights = weights
-        
+
 class Network:
     
     def __init__(self, layers): # layers comes from 
@@ -103,38 +93,38 @@ class Network:
         ## If network already exists, retrieve that model from omega and return it
 #        print("CreateNetwork object passed in (self):",self)
         
-        layer = tf.keras.layers.Dense(1, input_shape=(17,)) # NH - corrected shape of input tensor
+        layer = layers.Dense(1, input_shape=(17,)) # NH - corrected shape of input tensor
 #       print("layer var",layer)
-        inputs = keras.Input(shape=(17,))
+        inputs = Input(shape=(17,))
 #        print("inputs var",inputs)
 #        print("Range for loop is",len(self.layers),"minus 1")
         for i in range(len(self.layers) + 2):
             if len(self.layers) - 2 == 0:
 #                print("short network - only 2 layers")
-                moves = tf.keras.layers.Dense(2, activation='linear')(inputs)
-                attacks = tf.keras.layers.Dense(3, activation='sigmoid')(inputs)
+                moves = layers.Dense(2, activation='tanh')(inputs)
+                attacks = layers.Dense(3, activation='sigmoid')(inputs)
                 outputs = concatenate([moves, attacks])
 #               outputs = Dense(5, activation = 'softmax')(concat)
             elif i == 0:
 #                print("i == 0, first layer")
-                h = tf.keras.layers.Dense(len(self.layers[i].weights[0]), activation='relu')(inputs)
+                h = layers.Dense(len(self.layers[i].weights[0]), activation='elu')(inputs)
 #                print("self.layers",len(self.layers[i].weights[0]))
             elif i < len(self.layers):
 #                print("i <= tensors")
-                h = tf.keras.layers.Dense(len(self.layers[i].weights[0]), activation='relu')(h)
+                h = layers.Dense(len(self.layers[i].weights[0]), activation='elu')(h)
 #                print("self.layers",len(self.layers[i].weights[0]))
             else:
 #                print("outputs")
-                moves = tf.keras.layers.Dense(2, activation='tanh')(h)
-                attacks = tf.keras.layers.Dense(3, activation='sigmoid')(h)
+                moves = layers.Dense(2, activation='tanh')(h)
+                attacks = layers.Dense(3, activation='sigmoid')(h)
                 outputs = concatenate([moves, attacks])
 #               outputs = Dense(5, activation = 'softmax')(concat)
         
-        model = tf.keras.Model(inputs=inputs,
+        model = Model(inputs=inputs,
                               outputs=outputs)
                
         ## Save the model (either H5 or omega) for later access
-        model.compile('adam','mean_squared_error')
+        model.compile('adadelta','mean_squared_error')
         om.models.put(model, 'gen%dp%d' % (rounds, process_id))
 #        model = om.runtime.require('gpu').model('gen%dp%d' % (rounds, process_id))
         print("Model gen%dp%d stored in omega cloud" % (rounds, process_id))

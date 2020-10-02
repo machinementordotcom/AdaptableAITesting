@@ -1,37 +1,30 @@
 
-import sys
-import os
-from MyGame import *
-import arcade
-from sim import *
-from util.constants import * 
-from util.inputFunctions import * 
-from GENN.GENNFunctions import * 
-import time
-import multiprocessing
-# import concurrent.futures
-from operator import add 
+from sys import argv
+from numpy import asarray
+from os import path, remove
+from operator import add, itemgetter
 from ctypes import c_int
-from operator import itemgetter 
-import pandas as pd
-import json
-import re 
-import matplotlib.ticker as ticker
+from pandas import read_csv, DataFrame
 import omegaml as om
+from time import time
+from datetime import datetime
+from multiprocessing import Pool
+#from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from sim import Game
+from util.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE
+#from util.inputFunctions import * 
+from GENN.GENNFunctions import *
+ 
+
 
 def runOneGame(a):
 
-    max_moves = 1000 # High performing models usually prevail within 1000 moves
-#    print("runOneGame commencing")
-    x = Game(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11],a[12],a[13])
-#    print("setting up players")
+    x = Game(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11])
     x.setup()
     val = True
-#    print("Game Play Started...")
     while val == True:
-        val = x.update(max_moves)
+        val = x.update()
     return val    
-#    print('runOneGame OVER') 
 
 def main(args):
     
@@ -42,8 +35,8 @@ def main(args):
     
     ## Remove existing io_stream, if applicable
     try:
-        if os.path.exists("io_stream.csv"):
-            os.remove("io_stream.csv")
+        if path.exists("io_stream.csv"):
+            remove("io_stream.csv")
             print("io_stream.csv found and removed")
         else:
             print("io_stream.csv not found")
@@ -55,8 +48,8 @@ def main(args):
         pass
     
     try:
-        if os.path.exists("data_log.csv"):
-            os.remove("data_log.csv")
+        if path.exists("data_log.csv"):
+            remove("data_log.csv")
             print("data_log.csv found and removed")
         else:
             print("data_log.csv not found")
@@ -76,30 +69,31 @@ def main(args):
     
     ## Delete all models from previous games
     for i in range(10):
-        for j in range(20):
+        for j in range(100):
             try:
-                om.models.drop('gen%dp%d' % (i, j))
-                print("All models dropped")
+                model_id = 'gen%dp%d' % (i, j)
+                om.models.drop(model_id)
+                print(model_id,"dropped")
             except:
-                continue  
-                print("Unable to drop models")
+                pass
         
     if train == 'yes':
         # Game/Network will be played in the same time per generation
-        conCurrentGame = 30  # Must be at least 20 for topTen to function (min 2 nets)
+        conCurrentGame = 10
         # Total Generation 
-        generations = 9
+        generations = 33
         simulation_player_1 = 'genn'
         simulation_player_2 = 'fsm'
         player_2_type = 'range'
         graphics = 'no'
-        player_1_type = 'agenn'
+        player_1_type = 'genn'
         graphOutput = 'no'
         games_per_network = 9
         train = 'yes'
+        evolutions = True
         
         ## Select optimal number of pools
-        pools = os.cpu_count() * 2
+        pools = int(6)  # 1.5 per core
         
         print("All variables are set")
     else:
@@ -133,24 +127,6 @@ def main(args):
         if graphics == 'no':
             graphics = get_str_choice('Run Graphically?: ','yes','no')
 
-    if (player_1_type == 'genn' or player_1_type == 'agenn') and train == 'yes':
-        evolutions = True
-        print("Creating nets",player_1_type,train)
-        player_1_nets = createNets(conCurrentGame)
-    elif (player_1_type == 'genn' or player_1_type == 'agenn') and train == 'no':
-        print("Creating nets",player_1_type,train)
-        player_1_nets = readNets(conCurrentGame)
-    else: player_1_nets = None
-        
-    if (player_2_type == 'genn' or player_2_type == 'agenn') and train == 'yes':
-        evolutions = True
-        print("Creating nets",player_1_type,train)
-        player_2_nets = createNets(conCurrentGame)
-    elif (player_2_type == 'genn' or player_2_type == 'agenn') and train == 'no':
-        print("Creating nets",player_1_type,train)
-        player_2_nets = readNets(conCurrentGame)
-    else: player_2_nets = None
-        
     if graphics == 'yes':
         window = MyGame(SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,generations,player_1_type,player_2_type)
         window.setup()
@@ -159,7 +135,7 @@ def main(args):
         except:
             pass
     elif graphics == 'no':
-        start = time.time()
+        start = time()
         player1Wins = 0
         player2Wins = 0
         shortWins = 0
@@ -172,35 +148,29 @@ def main(args):
 
         for rounds in range(generations):
             
-            from keras import backend as K 
-            K.clear_session()
-
             print("Total rounds %d out of %d" % (rounds, generations))
-#            print("Player1 Nets length:", str(len(player_1_nets)))
-#            print("at beginning of round:\n",player_1_nets)
-#            time.sleep(30)
             
             if evolutions == True and train == 'yes':
                 
                 if player_1_type in ['genn','agenn']: # NH - added agenn to ensure evolution will take place with agenn as with genn
                     
-                    if (rounds + 1) % 11 == 0: # Every 11th generation the top ten are tested
+                    if rounds != 0:
                         
-                        pass  # Placeholder
-                        
-                    elif rounds != 0:
+                        ## If this is not the first round, then record and analyze the previous round
+                        # and evolve the networks
                         
                         # Export the data log to omega storage - can be run at any time
-                        data = pd.read_csv("data_log.csv")
-                        om.datasets.put(data, 'GENN_data', append=False, n_jobs=8)
+                        data = read_csv("data_log.csv")
+                        om.datasets.put(data, 'GENN_data', append=True, n_jobs=2)
+                        remove("data_log.csv")
                         print(data.shape)
                         
                         # Save data stream
-                        stream = pd.read_csv("io_stream.csv")
-                        om.datasets.put(stream, 'GENN_io_stream', append=False, n_jobs=8)
+                        stream = read_csv("io_stream.csv")
+                        om.datasets.put(stream, 'GENN_io_stream', append=True, n_jobs=2)
+                        remove("io_stream.csv")
                         print(stream.shape)
-                        
-                        
+                                                
                         print("evolutionHealth:",str(evolutionHealth))
                         
                         # NH - changed from .2 to .1 to take only top 10%
@@ -209,14 +179,20 @@ def main(args):
                         print("bestTen:",str(bestTen))                       
                     
                         # NH - added bestThirty for use in mutate and xover
-                        bestThirty = sorted(range(len(evolutionHealth)),
+                        # No longer needed                        
+                        """bestThirty = sorted(range(len(evolutionHealth)),
                                             key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.3):] 
                         print("bestThirty:",str(bestThirty))
+                        """
                         
                         ## Retrieve the best 10 and 30% as a list of networks
-                        bestTenNets = list(itemgetter(*bestTen)(player_1_nets)) 
+                        if len(bestTen) < 2:
+                            bestTenNets = itemgetter(bestTen[0])(player_1_nets)
+                            bestNets = asarray([bestTenNets]).tolist()
+                        else:
+                            bestTenNets = list(itemgetter(*bestTen)(player_1_nets)) 
+                            bestNets = bestTenNets
                         print("These are the top 10% of Nets from previous round (top 10%):",str(bestTen))
-                        bestNets = bestTenNets
                         
                         ## Log best nets - recursively save each to omega using list
                         rank = (len(bestTen))
@@ -228,42 +204,74 @@ def main(args):
                                 fitness = [evolutionHealth[net]],
                                 timestamp = [datetime.now()]
                             )
-                            dataFrame = pd.DataFrame(model_log)
+                            dataFrame = DataFrame(model_log)
                             om.datasets.put(dataFrame, 'GENN_model_log', append=True)
                             rank -= 1
                                                     
                         # NH - changed 'newNets' to 'bestThirtyNets'
-                        bestThirtyNets = list(itemgetter(*bestThirty)(player_1_nets)) 
+                        ## no longer needed
+                        """bestThirtyNets = list(itemgetter(*bestThirty)(player_1_nets)) 
                         print("These are the top 30% of Nets from previous round (top 10%):",str(bestThirty))
+                        """
                         
-                        ## NH - this will be replaced with crossover code when defined
-                        xoverNets = createNets(int(conCurrentGame * 0.3)) 
-                        print("These are xoverNets (30%):",str(player_1_nets))
+                        ## Create training set from top players of previous round
+                        if player_1_type == 'agenn':
+                            create_training_set(rounds, bestTen)
+                            print("Training set created from round %d top players" % (rounds - 1))
                         
-                        # passing in an additional variable
-                        mutatedNets = mutateNets(bestThirtyNets) 
-                        print("And these are the nets mutated from best nets (30%):",str(mutatedNets))
+                        if rounds % 11 == 0: # Every 11th generation the top players from previous 10 generations are tested
                         
-                        # NH - replaced createChildNets with createNets
-                        randomNets = createNets(int(conCurrentGame)-len(bestTenNets)+len(xoverNets)+len(mutatedNets)) 
-                        print("These are the new random nets (30%):",str(randomNets))
+                            player_1_nets = []
+                            count = int(conCurrentGame * 0.1)
+                            start_gen = rounds - 10
+
+                            for gen in range(start_gen,rounds):
+                                for model in range(count):
+                                    player_1_nets.append('gen%dp%d' % (gen, model))
+                                
+                            # Got the list, now send it to where it will initialize and play the games
+                            print("These are the players teed up for 11th gen test round:",player_1_nets)
                         
-                        # NH - pasting the network lists together
-                        player_1_nets = bestTenNets + randomNets + xoverNets + mutatedNets  
-                        print("These are player_1_nets for next round:",player_1_nets)
-                        #time.sleep(30)
-                        
+                        else:  ## Perform evolution
+                            print(bestNets[0])
+                            print(bestNets[0].layers)
+                            print(bestNets[0].layers[0].weights)
+                            try: ## If nets are listed in network form, this will work
+                                xoverNets = crossoverNets(bestNets+bestNets+bestNets) # top 10% is used to create 30% of nets 
+                            except:  ## After an 11th gen, nets will be listed in omega format, must convert
+                                last_round = rounds - 1
+                                bestNets = []
+                                for i in bestTen:
+                                    net = om.models.get('gen%dp%d' % (last_round, i))
+                                    bestNets.append(net)
+                                xoverNets = crossoverNets(bestNets+bestNets+bestNets)   
+                            print("These are xoverNets (30%):",str(xoverNets))
+
+                            # Bit Flip mutation
+                            mutatedNets = mutateNets(bestNets+bestNets+bestNets) 
+                            print("And these are the nets mutated from best nets (30%):",str(mutatedNets))
+
+                            # The balance of nets will be created randomly
+                            randomNets = createNets(int(conCurrentGame)-len(bestTen)-len(xoverNets)-len(mutatedNets)) 
+                            print("These are the new random nets (30%):",str(randomNets))
+
+                            # NH - pasting the network lists together
+                            player_1_nets = bestNets + randomNets + xoverNets + mutatedNets  
+                            print("These are player_1_nets for next round:",player_1_nets)
+
                         evolutionHealth = []
                         print("evolutionHealth is reset to",evolutionHealth)
-                        #time.sleep(10)
-                                                
-                        ## Create training set from top player of previous round
-                        create_training_set(rounds)
-                        print("Training set created from round %d top player" % (rounds - 1))
                         
+                    else:
+                        
+                        ## If this is the first round, then create all the nets from scratch
+                        
+                        print("Creating player 1 nets",player_1_type)
+                        player_1_nets = createNets(conCurrentGame)
+                        print("Creating opponent nets",player_1_type)
+                        player_2_nets = createNets(conCurrentGame)        
                         
                 if player_2_type == 'genn':
-                    #if rounds % 9 == 0 and rounds != 0:
                     if rounds != 0:
                         bestIndexs = sorted(range(len(evolutionHealth)), key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.2//1):]
                         evolutionHealth = []
@@ -272,20 +280,20 @@ def main(args):
                         player_2_nets = newNets + temp
                         player_2_nets = mutateNets(player_2_nets)
             
-#            pools = max(conCurrentGame,os.cpu_count()*4) # NH - need to create enough processes or threads to keep CPU busy
-            
+           
             print("Creating",pools,"process or thread pools")
-#            ex = concurrent.futures.ProcessPoolExecutor(max_workers=pools)  
-            ex = multiprocessing.Pool(pools) 
-
+#            ex = ProcessPoolExecutor(max_workers=pools)  
+            ex = Pool(pools) 
             
             result = ex.map(runOneGame,[ x + [i - 1]  \
                                        for i,x in enumerate([x for x in \
                                                              [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,
                                                              games_per_network,player_1_type,player_2_type,
                                                              conCurrentGame,rounds,player_1_nets,
-                                                             player_2_nets,bestNets,
-                                                             simulation_player_1,simulation_player_2]] *conCurrentGame  ],1) ]) #chunksize
+                                                             player_2_nets,bestNets]]*conCurrentGame],1)],1) #chunksize
+            
+            ex.close()
+            ex.join()
             
             print("Round result set:",result)
 
@@ -297,13 +305,8 @@ def main(args):
             draws += sum(int(i) == 0 for i in [int(i) for i in result])  
             leftOverHealth += sum([float(i) for i in result])
 
-            ex.close()  #NH - not needed if using futures.concurrent for multiprocessing
-            ex.join()
 
-        if player_1_type is 'genn' or player_1_type is 'agenn':
-            writeNetworks(player_1_nets)
-        if player_2_type is 'genn' or player_2_type is 'agenn':
-            writeNetworks(player_2_nets)
+        
         print("player 1 (" + player_1_type + "):",player1Wins)
         print("player 2 (" + player_2_type + "):",player2Wins)
 
@@ -312,5 +315,5 @@ def main(args):
         print("Total Time: ",round(time.time() - start,4))
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main(argv)
 
