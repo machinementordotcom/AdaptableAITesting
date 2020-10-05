@@ -1,35 +1,29 @@
 
-import numpy as np
-import arcade
-import os
-import math
-import random
-import sys
-import time
-from arcade.arcade_types import Color
-from FSMPlayers.RangePlayerSim import *
-from FSMPlayers.MidRangeSim import *
-from FSMPlayers.ShortRangeSim import *
-from FSMPlayers.AllEnemy import *
-from FSMPlayers.HumanPlayer import *
-from util.inputFunctions import *
-from DynamicController.DynamicControllerSim import *
+from arcade import Sprite
+from os import path
+from math import cos, sin, sqrt
+from random import randint, seed
+from time import time
+#from FSMPlayers.RangePlayerSim import *
+#from FSMPlayers.MidRangeSim import *
+#from FSMPlayers.ShortRangeSim import *
+#from FSMPlayers.AllEnemy import *
+# from FSMPlayers.HumanPlayer import *
+# from util.inputFunctions import *
+# from DynamicController.DynamicControllerSim import *
 from GENN.GENN import * 
 from util.constants import *
-import multiprocessing
-import numpy as np 
-import json
-import matplotlib.pyplot as plt
-import pandas as pd
-from datetime import datetime
+from numpy import zeros
 from GENN.GENNFunctions import *
+from datetime import datetime
+from pandas import DataFrame
 
-random.seed(RANDOM_SEED)
+seed(RANDOM_SEED)
 
 class Game:
     def __init__(self, width, height, title, games, player_1_type, player_2_type,
-                 conGames, rounds, player_1_nets, player_2_nets, trendTracking,
-                 player_1_simulation, player_2_simulation, process_id):
+                 conGames, rounds, player_1_nets, player_2_nets, bestNets,  #NH repurposed 'trendtracking' as bestNet
+                 process_id):
         """
         Initializer
         """
@@ -39,13 +33,12 @@ class Game:
         # directory this .py file is in. You can leave this out of your own
         # code, but it is needed to easily run the examples using "python -m"
         # as mentioned at the top of this program.
-        file_path = os.path.dirname(os.path.abspath(__file__))
-        os.chdir(file_path)
-        self.grid = np.zeros(shape = (SCREEN_HEIGHT, SCREEN_WIDTH))
+#        file_path = os.path.dirname(os.path.abspath(__file__))
+#        os.chdir(file_path)
+        self.grid = zeros(shape = (SCREEN_HEIGHT, SCREEN_WIDTH))
         self.curtime = 0
         self.written = 0
-        self.trendTracking = trendTracking
-        self.start = time.time()
+#        self.start = time()
         self.totalGames = games
         self.games = games
         self.player1_type = player_1_type.lower()
@@ -58,108 +51,25 @@ class Game:
         self.process_id = process_id
         self.player_1_nets = player_1_nets
         self.player_2_nets = player_2_nets
-        self.healthChanges = 0
-        self.player1_previous_health = PLAYER_HEALTH
-        self.player2_previous_health = PLAYER_HEALTH
-        self.player_1_simulation = player_1_simulation
-        self.player_2_simulation = player_2_simulation
+#        self.healthChanges = 0
+#        self.player1_previous_health = PLAYER_HEALTH
+#        self.player2_previous_health = PLAYER_HEALTH
+#        self.player_1_simulation = player_1_simulation
+#        self.player_2_simulation = player_2_simulation
         self.start = 0 # NH - for calculation of CPU move time
         self.end = 0
         self.health_diff = 0
+        self.bestNets = bestNets
         
-        print("Game Initialized for process ID/network: ",str(self.process_id))
+        print("Game Initialized for process ID/network: ",str(process_id))
 
     def jitter(self):
-        self.player1.center_x = random.randint(0,SCREEN_WIDTH)
-        self.player1.center_y = random.randint(0,SCREEN_HEIGHT)
-        self.player2.center_x = random.randint(0,SCREEN_WIDTH)
-        self.player2.center_y = random.randint(0,SCREEN_HEIGHT)
+        self.player1.center_x = randint(0,SCREEN_WIDTH)
+        self.player1.center_y = randint(0,SCREEN_HEIGHT)
+        self.player2.center_x = randint(0,SCREEN_WIDTH)
+        self.player2.center_y = randint(0,SCREEN_HEIGHT)
 
-
-    def write_csv(self, filename, arrow, fire, knife, towardsOpponent, awayOpponent,
-                  movementChanges, biggestTrend,
-                  concurrent_game_id, player_type, player_simulation,
-                  iteration, healthChanges):
-        data = {
-            'Arrow': [arrow],
-            'Fire': [fire],
-            'knife': [knife],
-            'towardsOpponent': [towardsOpponent],
-            'awayOpponent': [awayOpponent],
-            'movementChanges': [movementChanges],
-            'biggestTrend': [biggestTrend],
-            'concurrent_game_id': [concurrent_game_id],
-            'player_type': [player_type],
-            'player_simulation': [player_simulation],
-            'iteration': [int(iteration)+1],
-            'healthChanges': [healthChanges],
-            'timestamp': [str(datetime.now())],
-        }
-
-        df = pd.DataFrame(data)
-
-        if os.path.exists(filename):
-            df.to_csv(str(filename), mode='a', header=False, index=False)
-
-        else:
-            df.to_csv(str(filename), mode='w', header=True, index=False)
-
-    def writeTrends(self):
-        # Write CSV
-        # Player 1
-        self.write_csv(
-            "player_1_log.csv",
-            self.player1.trends['arrow'],
-            self.player1.trends['fire'],
-            self.player1.trends['knife'],
-            self.player1.trends['towardsOpponent'],
-            self.player1.trends['awayOpponent'],
-            self.player1.trends['movementChanges'],
-            self.player1.trends['biggestTrend'],
-            self.process_id,
-            self.player1_type,
-            self.player_1_simulation,
-            self.rounds,
-            self.healthChanges,
-        )
-
-        # Player 2
-        self.write_csv(
-            "player_2_log.csv",
-            self.player1.trends['arrow'],
-            self.player1.trends['fire'],
-            self.player1.trends['knife'],
-            self.player1.trends['towardsOpponent'],
-            self.player1.trends['awayOpponent'],
-            self.player1.trends['movementChanges'],
-            self.player1.trends['biggestTrend'],
-            self.process_id,
-            self.player2_type,
-            self.player_2_simulation,
-            self.rounds,
-            self.healthChanges,
-        )
-
-
-        if self.written == 0 and self.games == self.totalGames:
-            with open("player1Trends.txt",'w+') as myfile:
-                myfile.write(json.dumps(self.player1.trends))
-                myfile.close()
-            with open("player2Trends.txt",'w+') as myfile:
-                myfile.write(json.dumps(self.player2.trends))
-                myfile.close()
-        else:
-            with open("player1Trends.txt",'a') as myfile:
-                myfile.write(json.dumps(self.player1.trends))
-                myfile.close()
-            with open("player2Trends.txt",'a') as myfile:
-                myfile.write(json.dumps(self.player2.trends))
-                myfile.close()    
-        self.written += 1    
-        self.player1.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
-        self.player2.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
-
-    def setup(self):
+    def setup(self, model=None):  #RunOneGame comes here first
         
         print("Running self.setup")
         self.player_list = []
@@ -167,20 +77,73 @@ class Game:
         self.fireball_list = []
         self.knife_list = []
         self.curtime = 0
-#        print("Move",str(self.curtime))
-#        self.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
+        self.start = datetime.now()
+        rounds = self.rounds
+        game_num = self.games
+        
+        self.progress_data = DataFrame(
+            {'games': [],
+             'model_id': [],
+             'player_1_type': [],
+             'player_2_type': [],
+             'conCurrentGames': [],
+             'rounds': [],
+             'process_id': [],
+             'agenn_v': [],
+             'player1_center_x': [],
+             'player1_center_y': [],
+             'player1_shield': [],
+             'player2_center_x': [],
+             'player2_center_y': [],
+             'player2_shield': [],
+             'player1_fireball': [],
+             'player2_fireball': [],
+             'player1_arrow': [],
+             'player1_knife': [],
+             'player2_knife': [],
+             'game_move': [],
+             'player1_health': [],
+             'player2_health': [],
+             'fitness': [],
+             'timestamp': []}
+)
 
         # Set up player1
-        print("Setting up player1 as",self.player1_type,self.player_1_simulation)
-        if self.player1_type.lower() == 'range':
+#        print("Setting up player1 as",self.player1_type,self.player_1_simulation)
+        if self.player1_type == 'genn' or self.player1_type == 'agenn':
+
+            self.player1 = GENN(KNIGHT_IMAGE,1)
+            self.player1.net = self.player_1_nets[self.process_id]
+
+            if rounds % 11 == 0 and rounds != 0 and game_num == 9:  ## In every 10th round models will be retrieved from omega
+                original = str(self.player1.net)
+                newname = str('gen%dp%d' % (self.rounds, self.process_id))
+                self.player1.model = om.models.get(original)
+                print("Player %d retrieved from omega" % (self.process_id))
+                ## Save model to omega as current round model
+                om.models.put(self.player1.model, newname)
+                print("Player",original,"saved to omega as",newname)
+
+            elif game_num < 9:  ## If this isn't the first game of the round, keep the same model
+                self.player1.model = model
+                
+#                self.player1.model = om.models.get('gen%dp%d' % (self.rounds, self.process_id))
+                
+            else: ## if it's the first game in the round, create the network
+                self.player1.model = self.player1.net.createNetwork(self.rounds, self.process_id)
+                print("Creating new network")
+        
+        """elif self.player1_type.lower() == 'range':
+            from FSMPlayers.RangePlayerSim import RangePlayer
             self.player1 = RangePlayer(KNIGHT_IMAGE,1)
         elif self.player1_type.lower() == 'mid':
+            from FSMPlayers.MidRangeSim import MidRangePlayer
             self.player1 = MidRangePlayer(KNIGHT_IMAGE,1)
         elif self.player1_type.lower() == 'short':
+            from FSMPlayers.ShortRangeSim import ShortRangePlayer
             self.player1 = ShortRangePlayer(KNIGHT_IMAGE,1)
         elif self.player1_type.lower() == 'master':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = None
@@ -202,7 +165,6 @@ class Game:
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'average':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'both'
@@ -222,7 +184,6 @@ class Game:
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'random':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'both'
@@ -243,7 +204,6 @@ class Game:
                 chooseWeight(self.player1)
         elif self.player1_type.lower() == 'train':
             self.player1 = DynamicController(KNIGHT_IMAGE,1)
-#            self.player1.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
             self.player1.conGames = self.conGames
             self.player1.id = "player1"
             self.player1.adjusting = 'shoot'
@@ -266,21 +226,16 @@ class Game:
                 self.player1.weights = [[],[]]
                 self.player1.readWeights()
                 chooseWeight(self.player1)
-        elif self.player1_type == 'genn' or self.player1_type == 'agenn':
-            self.player1 = GENN(KNIGHT_IMAGE,1)
-            self.player1.net = self.player_1_nets[self.process_id]
-            self.player1.model = self.player1.net.createNetwork()
- #           print(self.player1.model.summary())
- #           import omegaml as om
- #           om.models.put(self.player1.model, self)
 
+                
         else:
             self.player1 = Enemy(KNIGHT_IMAGE,1)
+            """
 
-        self.player1.append_texture(arcade.load_texture(KNIGHT_IMAGE))
-        self.player1.append_texture(arcade.load_texture(KNIGHT_IMAGE))
-        self.player1.center_x = random.randint(0,SCREEN_WIDTH)
-        self.player1.center_y = random.randint(0,SCREEN_HEIGHT)
+#        self.player1.append_texture(arcade.load_texture(KNIGHT_IMAGE))
+#        self.player1.append_texture(arcade.load_texture(KNIGHT_IMAGE))
+        self.player1.center_x = randint(0,SCREEN_WIDTH)
+        self.player1.center_y = randint(0,SCREEN_HEIGHT)
         self.player1.score = 0
         self.player1.health = PLAYER_HEALTH
         self.player1.curtime = 0
@@ -298,88 +253,95 @@ class Game:
         self.player1.version = 1
         self.player1.health_diff = 0
 
-        # Set up bad guy
-        print("Setting up player2 as",self.player2_type,self.player_2_simulation)
-        if self.player2_type.lower() == 'range':
+        # Set up opponent
+        if self.games == 9:  ## If this is the first game in a round, set up range from scratch
+            from FSMPlayers.RangePlayerSim import RangePlayer
             self.player2 = RangePlayer(KNIGHT_IMAGE,1)
-        elif self.player2_type.lower() == 'mid':
+        elif self.games in [8, 7]:
+            pass
+        elif self.games == 6:
+            from FSMPlayers.MidRangeSim import MidRangePlayer
             self.player2 = MidRangePlayer(KNIGHT_IMAGE,1)
-        elif self.player2_type.lower() == 'short':
+        elif self.games in [5, 4]:
+            pass
+        elif self.games == 3:
+            from FSMPlayers.ShortRangeSim import ShortRangePlayer
             self.player2 = ShortRangePlayer(KNIGHT_IMAGE,1)
-        elif self.player2_type.lower() == 'master':
-            self.player2 = DynamicController(KNIGHT_IMAGE,1)
-            self.player2.conGames = self.conGames
-#            self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
-            self.player2.id = "player2"
-            self.player2.adjusting = None
-            if self.rounds == 0:
-                self.player2.adjustingWeight = 0
-                self.player2.weights = [[],[]]
-                self.player2.readWeights("DynamicController/masterWeights.csv")
-                self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
-                self.player2.benchmarkDifference = 0
-                self.player2.shootRule = None
-                self.player2.moverule = None
-                chooseWeight(self.player2)
+        elif game_num in [2, 1]:
+            pass
+        
+            """elif self.player2_type.lower() == 'master':
+                self.player2 = DynamicController(KNIGHT_IMAGE,1)
+                self.player2.conGames = self.conGames
+                self.player2.id = "player2"
+                self.player2.adjusting = None
+                if self.rounds == 0:
+                    self.player2.adjustingWeight = 0
+                    self.player2.weights = [[],[]]
+                    self.player2.readWeights("DynamicController/masterWeights.csv")
+                    self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
+                    self.player2.benchmarkDifference = 0
+                    self.player2.shootRule = None
+                    self.player2.moverule = None
+                    chooseWeight(self.player2)
+                else:
+                    self.player2.adjustingWeight = self.totalGames - self.games
+                    self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
+                    self.player2.benchmarkDifference = 0
+                    self.player2.weights = [[],[]]
+                    self.player2.readWeights("DynamicController/masterWeights.csv")
+                    chooseWeight(self.player2)
+            elif self.player2_type.lower() == 'average':
+                self.player2 = DynamicController(KNIGHT_IMAGE,1)
+                self.player2.conGames = self.conGames
+                self.player2.id = "player2"
+                self.player2.adjusting = 'both'
+                if self.rounds == 0:
+                    self.player2.weights = [[],[]]
+                    self.player2.readWeights("DynamicController/masterWeights.csv")
+                    self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
+                    self.player2.benchmarkDifference = 0
+                    self.player2.shootRule = None
+                    self.player2.moverule = None
+                    chooseWeight(self.player2)
+                else:
+                    self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
+                    self.player2.benchmarkDifference = 0
+                    self.player2.weights = [[],[]]
+                    self.player2.readWeights()
+                    chooseWeight(self.player2)
+            elif self.player2_type.lower() == 'random':
+                self.player2 = DynamicController(KNIGHT_IMAGE,1)
+                self.player2.conGames = self.conGames
+                self.player2.id = "player2"
+                self.player2.adjusting = 'both'
+                if self.rounds == 0:
+                    self.player2.adjustingWeight = 0
+                    shootWeights = [1/21] * 21
+                    moveWeights = [1/7] * 14 + [1/2] * 6
+                    self.player2.weights = [shootWeights,moveWeights]
+                    self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
+                    self.player2.benchmarkDifference = 0
+                    self.player2.shootRule = None
+                    self.player2.moverule = None
+                    chooseWeight(self.player2)
+                else:
+                    self.player2.adjustingWeight = self.totalGames - self.games
+                    self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
+                    self.player2.benchmarkDifference = 0
+                    self.player2.weights = [[],[]]
+                    self.player2.readWeights()
+                    chooseWeight(self.player2)
+            elif self.player2_type is 'genn':
+                self.player2 = GENN(KNIGHT_IMAGE,1)
+                self.player2.net = self.player_2_nets[self.process_id]
+                self.player2.model =  self.player2.net.createNetwork(self.rounds, self.process_id)
             else:
-                self.player2.adjustingWeight = self.totalGames - self.games
-                self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
-                self.player2.benchmarkDifference = 0
-                self.player2.weights = [[],[]]
-                self.player2.readWeights("DynamicController/masterWeights.csv")
-                chooseWeight(self.player2)
-        elif self.player2_type.lower() == 'average':
-            self.player2 = DynamicController(KNIGHT_IMAGE,1)
-            self.player2.conGames = self.conGames
-#            self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
-            self.player2.id = "player2"
-            self.player2.adjusting = 'both'
-            if self.rounds == 0:
-                self.player2.weights = [[],[]]
-                self.player2.readWeights("DynamicController/masterWeights.csv")
-                self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
-                self.player2.benchmarkDifference = 0
-                self.player2.shootRule = None
-                self.player2.moverule = None
-                chooseWeight(self.player2)
-            else:
-                self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
-                self.player2.benchmarkDifference = 0
-                self.player2.weights = [[],[]]
-                self.player2.readWeights()
-                chooseWeight(self.player2)
-        elif self.player2_type.lower() == 'random':
-            self.player2 = DynamicController(KNIGHT_IMAGE,1)
-            self.player2.conGames = self.conGames
-#            self.player2.conCurrentGameId = multiprocessing.current_process()._identity[0]%self.conGames
-            self.player2.id = "player2"
-            self.player2.adjusting = 'both'
-            if self.rounds == 0:
-                self.player2.adjustingWeight = 0
-                shootWeights = [1/21] * 21
-                moveWeights = [1/7] * 14 + [1/2] * 6
-                self.player2.weights = [shootWeights,moveWeights]
-                self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
-                self.player2.benchmarkDifference = 0
-                self.player2.shootRule = None
-                self.player2.moverule = None
-                chooseWeight(self.player2)
-            else:
-                self.player2.adjustingWeight = self.totalGames - self.games
-                self.player2.totalHealthBenchmark = PLAYER_HEALTH * 2 - 100
-                self.player2.benchmarkDifference = 0
-                self.player2.weights = [[],[]]
-                self.player2.readWeights()
-                chooseWeight(self.player2)
-        elif self.player2_type is 'genn':
-            self.player2 = GENN(KNIGHT_IMAGE,1)
-            self.player2.net = self.player_2_nets[self.process_id]
-            self.player2.model =  self.player2.net.createNetwork()
-        else:
-            self.player2 = Enemy(KNIGHT_IMAGE,1)
+                self.player2 = Enemy(KNIGHT_IMAGE,1)
+                """
 
-        self.player2.center_x = random.randint(0,SCREEN_WIDTH)
-        self.player2.center_y = random.randint(0,SCREEN_HEIGHT)
+        self.player2.center_x = randint(0,SCREEN_WIDTH)
+        self.player2.center_y = randint(0,SCREEN_HEIGHT)
         self.player2.health = PLAYER_HEALTH
         self.player2.score = 0
         self.player2.curtime = 0
@@ -402,7 +364,6 @@ class Game:
         self.player2.currentTrend = 0
       
         print("Game setup complete for Process ID/Network: ",str(self.process_id))
-#        print("\nModel summary:\n",self.player1.model.summary())
     
     def end_game(self):
  
@@ -442,11 +403,11 @@ class Game:
         if self.games == 0: 
             print("Round over for player",str(self.process_id),", calculating final fitness")
             self.health_diff = self.health_diff / self.totalGames  # Returns average fitness across all games in round
-            print("Final fitness is",self.health_diff,"totalGames is",self.totalGames)
+            print("Final fitness is",self.health_diff)
             return self.health_diff
         
         else: 
-            self.setup()
+            self.setup(self.player1.model)
             return True
         
     def init_player(self):
@@ -499,7 +460,7 @@ class Game:
             return True
         return False
     
-    def update(self, max_moves):
+    def update(self):
 
         # Attack Data Holder
         player1_fireball = 0
@@ -508,34 +469,50 @@ class Game:
         player2_arrow = 0
         player1_knife = 0
         player2_knife = 0
+        rounds, val, process_id, games = self.rounds, 1, self.process_id, self.games
+        player1, player2 = self.player1, self.player2
+        self_height, self_width = self.height, self.width
+        center_y_1, center_y_2 = self.player1.center_y, self.player2.center_y
+        center_x_1, center_x_2 = self.player1.center_x, self.player2.center_x
+        player_1_health, player_2_health = self.player1.health, self.player2.health
+        player_1_type, player_2_type = self.player1_type, self.player2_type
+        games = self.games
+        player1_shield, player2_shield = self.player1.shield, self.player2.shield
+        timestamp = datetime.now()
+        max_moves = 500
         val = True
 
         self.curtime += 1
-        self.player1.update()
-        self.player2.update()
+        curtime = self.curtime
         
-        self.fitness = [self.player1.health - self.player2.health]
-
+        player1.update(rounds, process_id)
+        player2.update()
+        
+        
+        
+        fitness = [player_1_health - player_2_health]
+        
         # player 1 collision
-        if self.player1.center_y >= self.height:
-            self.player1.center_y = self.height
-        if self.player1.center_y <= 0:
+        if center_y_1 >= self_height:
+            self.player1.center_y = self_height
+        if center_y_1 <= 0:
             self.player1.center_y = 0
-        if self.player1.center_x >= self.width:
-            self.player1.center_x = self.width
-        if self.player1.center_x <= 0:
+        if center_x_1 >= self_width:
+            self.player1.center_x = self_width
+        if center_x_1 <= 0:
             self.player1.center_x = 0
         # player 2 collision
-        if self.player2.center_y >= self.height:
-            self.player2.center_y = self.height
-        if self.player2.center_y <= 0:
+        if center_y_2 >= self_height:
+            self.player2.center_y = self_height
+        if center_y_2 <= 0:
             self.player2.center_y = 0
-        if self.player2.center_x >= self.width:
-            self.player2.center_x = self.width
-        if self.player2.center_x <= 0:
+        if center_x_2 >= self_width:
+            self.player2.center_x = self_width
+        if center_x_2 <= 0:
             self.player2.center_x = 0
         
         #fireball movement
+
         for self.fireball in self.player1.fireball_list:
             if self.collisionCheck(self.player2,self.fireball):
                 self.player1.fireball_list.remove(self.fireball)
@@ -545,8 +522,8 @@ class Game:
                 
             elif self.fireball.center_x < -5 or self.fireball.center_x > SCREEN_WIDTH +5 or self.fireball.center_y < -5 or self.fireball.center_y > SCREEN_HEIGHT + 5:
                 self.player1.fireball_list.remove(self.fireball)
-            self.fireball.center_x += self.fireball.vel*math.cos(self.player1.angle)
-            self.fireball.center_y += self.fireball.vel*math.sin(self.player1.angle)
+            self.fireball.center_x += self.fireball.vel*cos(self.player1.angle)
+            self.fireball.center_y += self.fireball.vel*sin(self.player1.angle)
 
         #fireball movement
         for self.fireball in self.player2.fireball_list:
@@ -558,8 +535,8 @@ class Game:
                 
             elif self.fireball.center_x < -5 or self.fireball.center_x > SCREEN_WIDTH +5 or self.fireball.center_y < -5 or self.fireball.center_y > SCREEN_HEIGHT + 5:
                 self.player2.fireball_list.remove(self.fireball)
-            self.fireball.center_x += self.fireball.vel*math.cos(self.player2.angle)
-            self.fireball.center_y += self.fireball.vel*math.sin(self.player2.angle)
+            self.fireball.center_x += self.fireball.vel*cos(self.player2.angle)
+            self.fireball.center_y += self.fireball.vel*sin(self.player2.angle)
 
         # Arrow movement
         for self.arw in self.player1.arrow_list:
@@ -573,8 +550,8 @@ class Game:
             elif self.arw.center_x < -5 or self.arw.center_x > SCREEN_WIDTH+5 or self.arw.center_y < -5 or self.arw.center_y > SCREEN_HEIGHT +5:
                 self.player1.arrow_list.remove(self.arw)
 
-            self.arw.center_x += self.arw.vel*math.cos(self.player1.angle)
-            self.arw.center_y += self.arw.vel*math.sin(self.player1.angle)
+            self.arw.center_x += self.arw.vel*cos(self.player1.angle)
+            self.arw.center_y += self.arw.vel*sin(self.player1.angle)
 
         # Arrow movement
         for self.arw in self.player2.arrow_list:
@@ -587,8 +564,8 @@ class Game:
             elif self.arw.center_x < -5 or self.arw.center_x > SCREEN_WIDTH +5 or self.arw.center_y < -5 or self.arw.center_y > SCREEN_HEIGHT + 5:
                 self.player2.arrow_list.remove(self.arw)
 
-            self.arw.center_x += self.arw.vel*math.cos(self.player2.angle)
-            self.arw.center_y += self.arw.vel*math.sin(self.player2.angle)
+            self.arw.center_x += self.arw.vel*cos(self.player2.angle)
+            self.arw.center_y += self.arw.vel*sin(self.player2.angle)
 
         
         #Knife Movement 
@@ -609,99 +586,103 @@ class Game:
             self.player2.knife_list.remove(self.knife)
         
         ## Reporting in console
-        interval = 1000
-        if self.curtime % interval == 0:  ## added intermittent updates instead of every move
+        interval = 249
+        if not curtime % interval == 0:  ## added intermittent updates instead of every move
+            pass
+        else:
             self.end = datetime.now()
             try: avg = (self.end-self.start) / interval
             except: 
                 avg = 0 
                 print("start time unknown")
-            print("\nRound:",str(self.rounds),
-                  "\nGames left:",str(self.games),
-                  "\nPlayer:",str(self.process_id),
-                  "\nMove:",str(self.curtime),
-                  "\nPlayer1 Health:", str(self.player1.health),
-                  "\nPlayer2 Health:", str(self.player2.health),
-                  "\nPlayer1 Fitness:", str(self.fitness),
+            print("\nRound:",str(rounds),
+                  "\nGames left:",str(games),
+                  "\nPlayer:",str(process_id),
+                  "\nMove:",str(curtime),
+                  "\nPlayer1 Health:", str(player_1_health),
+                  "\nPlayer2 Health:", str(player_2_health),
+                  "\nPlayer1 Fitness:", str(fitness),
                   "\nAvg move time:", avg
                  )
             self.start = datetime.now()
+            
 
         # aGENN Supervisor
         # NH - making change to use current difference as only metric
-        """
-        current_health_differ = self.player1.health - self.player2.health
-        # NH - changed from 'player_1_simulation
-        if self.player1_type == 'agenn' and self.curtime % 1000 == 0:
-                print("\nat move",self.curtime
-                      "Player",self.process_id,
-                      "\nhealth diff is:",current_health_differ)
-                if current_health_differ < -100:
-                    self.player1.version += 1
-                    print("Supervisor sent player",
-                      str(self.process_id),
-                      "back for training. Now player is version",
-                      str(self.player1.version))
-                    self.player1.net = createChildNets(self.player1.net, 1)
-                    self.player1.net = mutateNets(self.player1.net)[0]
-                    self.player1.model =  self.player1.net.createNetwork()
-           """                
-        #Print The Log Result
-        progress_data = dict(
-        	games = [self.games],
-        	net_id = str([self.player_1_nets[self.process_id]])[-15:],
-        	model_id = [self.player1.model],
-#        	player_1_type = [self.player1_type],
-        	player_2_type = [self.player2_type],
-#        	conCurrentGames = [self.conGames],
-#        	player_1_simulation = [self.player_1_simulation],
-#        	player_2_simulation = [self.player_2_simulation],
-        	rounds = [self.rounds],
-        	process_id = [self.process_id],
-#        	agenn_v = [self.player1.version],
-#        	player1_center_x = [self.player1.center_x],
-#        	player_1_center_y = [self.player1.center_y],
-        	player1_shield = [self.player1.shield],
-#        	player2_center_x = [self.player2.center_x],
-#        	player_2_center_y = [self.player2.center_y],
-        	player2_shield = [self.player2.shield],
-#        	player1_score = [self.player1_score],
-#        	player2_score = [self.player2_score],
-#        	player1_fireball = [player1_fireball],
-#        	player2_fireball = [player2_fireball],
-#        	player1_arrow = [player1_arrow],
-#        	player2_arrow = [player2_arrow],
-#        	player1_knife = [player1_knife],
-#        	player2_knife = [player2_knife],
-        	game_move = [self.curtime], 
-        	player1_health = [self.player1.health],
-        	player2_health = [self.player2.health],
-        	health_diff = [self.player1.health - self.player2.health], # NH - replaced separate health points above
-        	timestamp = [datetime.now()],
-        )
         
-        ## NH made reporting less frequent for performance reasons
-        if self.curtime % 1 == 0:
-            dataFrame = pd.DataFrame(progress_data)
-            file_name = "data_log.csv"
-#            print("Writing data log")
-   
-            if os.path.exists(file_name):
-                dataFrame.to_csv(file_name, mode='a', header=False, index=False)
+#        current_fitness = self.player1.health - self.player2.health
+        # NH - changed from 'player_1_simulation
 
+        if player_1_type != 'agenn':
+            pass
+        elif curtime % 99 == 0 and rounds >= 1 and fitness[0] < 0: # To capture top model from gen 0
+            self.player1.version += 1
+            print("Supervisor sent player",
+              str(process_id),
+              "back for training. Now player is version",
+              str(self.player1.version))
+            # Create aGENN log to record all Supervisor actions
+            # Write a subroutine to access stream and train model
+            model_id = 'gen%dp%d' % (rounds, process_id)
+            self.player1.model = aGENN_train(model_id, rounds)
+        
+        
+            #Print The Log Result
+        newrow = dict(
+            games = games,
+            model_id = str('gen%dp%d' % (rounds, process_id)),
+            player_1_type = player_1_type,
+            player_2_type = player_2_type,
+            conCurrentGames = games,
+            rounds = rounds,
+            process_id = process_id,
+            agenn_v = self.player1.version,
+            player1_center_x = center_x_1,
+            player_1_center_y = center_y_1,
+            player1_shield = player1_shield,
+            player2_center_x = center_x_2,
+            player_2_center_y = center_y_2,
+            player2_shield = player2_shield,
+            player1_fireball = player1_fireball,
+            player2_fireball = player2_fireball,
+            player1_arrow = player1_arrow,
+            player2_arrow = player2_arrow,
+            player1_knife = player1_knife,
+            player2_knife = player2_knife,
+            game_move = curtime, 
+            player1_health = player_1_health,
+            player2_health = player_2_health,
+            health_diff = fitness, # NH - replaced separate health points above
+            timestamp = timestamp,
+            )
+        
+#        self.progress_data = self.progress_data.append(newrow, ignore_index=True)
+        
+        if curtime % 1 != 0:
+            pass
+        else:         
+            dataFrame = DataFrame(newrow)
+            file_name = 'data_log.csv'
+            if path.exists(file_name):
+                dataFrame.to_csv(file_name, mode='a', header=False, index=False)
             else:
-                dataFrame.to_csv(file_name, mode='w', header=True, index=False)                
+                dataFrame.to_csv(file_name, mode='w', header=True, index=False)
+                
+#            self.progress_data = self.progress_data[0:0]  #remove all rows in dataframe
+      
+
+
        
         # Check for end of game state
-        if self.curtime >= max_moves:
+        if curtime >= max_moves:
             print("Game has reached max moves of",str(max_moves))
             
-            if self.player1.health == self.player2.health:
+            if player_1_health == player_2_health:
                 self.draws += 1
                 print("Game ends in a draw")
                 val = self.end_game()
                 
-            elif self.player1.health > self.player2.health:
+            elif player_1_health > player_2_health:
                 self.player1.score +=1
                 print("Player1 wins")
                 val = self.end_game()
@@ -711,29 +692,19 @@ class Game:
                 print("Player2 wins")
                 val = self.end_game()
              
-        elif self.player1.health <= 0 and self.player2.health <= 0:
+        elif player_1_health <= 0 and player_2_health <= 0:
             print("Both players are at zero health")
             self.draws += 1
             print("Game ends in a draw")
             val = self.end_game()
                 
-        elif self.player2.health <= 0:
+        elif player_2_health <= 0:
             self.player1.score += 1 
             val = self.end_game()
             
-        elif self.player1.health <= 0:
+        elif player_1_health <= 0:
             self.player2.score += 1 
             val = self.end_game()
                            
-#        if self.player1.health == self.player1_previous_health and self.player2_previous_health == self.player2.health: self.healthChanges += 1
-#        else: self.healthChanges = 0
-        
-#        if self.healthChanges > 1500: 
-#            self.jitter()
-#            self.healthChanges = 0
-            
-#        self.player1_previous_health = self.player1.health
-#        self.player2_previous_health = self.player2.health
-        
         return val
         

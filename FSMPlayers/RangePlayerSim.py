@@ -1,8 +1,10 @@
-import math
-import random
-from util.constants import * 
 
-class RangePlayer(arcade.Sprite):
+from math import cos, sin, degrees, radians, sqrt, atan2
+from random import choices
+from util.constants import *
+from arcade import Sprite
+
+class RangePlayer(Sprite):
     def check_for_collision(self,player,projectiles):
         for projectile in projectiles:
             start_x = projectile.center_x
@@ -10,8 +12,8 @@ class RangePlayer(arcade.Sprite):
             if start_x - projectile.box <= player.center_x + player.box or start_x + projectile.box >= player.center_x - player.box and start_y + projectile.box <= player.center_y - player.box or start_y + projectile.box >= player.center_y - player.box:
                     return True
             while start_x > 0 and start_y > 0 and start_x < SCREEN_WIDTH and start_y < SCREEN_HEIGHT:
-                start_x += projectile.vel*math.cos(angle)
-                start_y += projectile.vel*math.sin(angle)
+                start_x += projectile.vel*cos(angle)
+                start_y += projectile.vel*sin(angle)
                 if start_x - projectile.box <= player.center_x + player.box or start_x + projectile.box >= player.center_x - player.box and start_y + projectile.box <= player.center_y - player.box or start_y + projectile.box >= player.center_y - player.box:
                     return True
         return False
@@ -25,8 +27,8 @@ class RangePlayer(arcade.Sprite):
         arrow.start_x = self.center_x # for tracking 
         arrow.start_y = self.center_y
         arrow.angle = self.angle-90
-        arrow.change_x = -ARROW_SPEED*math.sin(math.radians(self.angle))
-        arrow.change_y = ARROW_SPEED*math.cos(math.radians(self.angle))
+        arrow.change_x = -ARROW_SPEED*sin(radians(self.angle))
+        arrow.change_y = ARROW_SPEED*cos(radians(self.angle))
         arrow.vel = ARROW_SPEED
         arrow.box = BOX
 
@@ -34,11 +36,11 @@ class RangePlayer(arcade.Sprite):
 
         hit = HitBox("images/fire.png")
         hit._set_alpha(0)
-        hit._set_height(math.sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
+        hit._set_height(sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
         hit._set_width(ARROW_IMAGE_HEIGHT)
         hit.angle = self.angle
-        hit.center_x = self.center_x + -math.sin(math.radians(hit.angle)) * hit.height/2
-        hit.center_y = self.center_y + math.cos(math.radians(hit.angle)) * hit.height/2
+        hit.center_x = self.center_x + -sin(radians(hit.angle)) * hit.height/2
+        hit.center_y = self.center_y + cos(radians(hit.angle)) * hit.height/2
         hit.vel = ARROW_SPEED
         hit.box = BOX
         arrow.hit = hit
@@ -48,8 +50,8 @@ class RangePlayer(arcade.Sprite):
         self.curtime += 1
         if len(self.opponent_hitbox_list) > 0:
             if self.check_for_collision(self,self.opponent_hitbox_list):
-                randmove_x = random.choices([1,-1])[0]
-                randmove_y = random.choices([1,-1])[0]
+                randmove_x = choices([1,-1])[0]
+                randmove_y = choices([1,-1])[0]
                 x_change = MOVEMENT_SPEED * randmove_x
                 y_change = MOVEMENT_SPEED * randmove_y
             else:
@@ -89,10 +91,10 @@ class RangePlayer(arcade.Sprite):
             
         x_diff = self.opponent.center_x - self.center_x
         y_diff = self.opponent.center_y - self.center_y
-        self.d = math.sqrt(x_diff**2 +y_diff**2)
-        self.angle = math.degrees(math.atan2(y_diff,x_diff))-90
-        self.change_x = -math.cos(self.angle)*MOVEMENT_SPEED
-        self.change_y = -math.sin(self.angle)*MOVEMENT_SPEED
+        self.d = sqrt(x_diff**2 +y_diff**2)
+        self.angle = degrees(atan2(y_diff,x_diff))-90
+        self.change_x = -cos(self.angle)*MOVEMENT_SPEED
+        self.change_y = -sin(self.angle)*MOVEMENT_SPEED
         if self.curtime >=30:
             self.shootarrow()
             self.curtime = 0
