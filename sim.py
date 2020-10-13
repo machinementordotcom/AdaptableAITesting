@@ -17,8 +17,12 @@ from numpy import zeros
 from GENN.GENNFunctions import *
 from datetime import datetime
 from pandas import DataFrame
+from gc import collect
 
 seed(RANDOM_SEED)
+
+# Then we need to use decorator on a function which we want to use for Ray
+#@ray.remote
 
 class Game:
     def __init__(self, width, height, title, games, player_1_type, player_2_type,
@@ -61,17 +65,17 @@ class Game:
         self.health_diff = 0
         self.bestNets = bestNets
         
-        print("Game Initialized for process ID/network: ",str(process_id))
-
+#        print("Game Initialized for process ID/network: ",str(process_id))
     def jitter(self):
         self.player1.center_x = randint(0,SCREEN_WIDTH)
         self.player1.center_y = randint(0,SCREEN_HEIGHT)
         self.player2.center_x = randint(0,SCREEN_WIDTH)
         self.player2.center_y = randint(0,SCREEN_HEIGHT)
-
+    
     def setup(self, model=None):  #RunOneGame comes here first
         
-        print("Running self.setup")
+#        print("Running self.setup")
+        collect()
         self.player_list = []
         self.arrow_list = []
         self.fireball_list = []
@@ -80,6 +84,7 @@ class Game:
         self.start = datetime.now()
         rounds = self.rounds
         game_num = self.games
+        p_id = self.process_id
         
         self.progress_data = DataFrame(
             {'games': [],
@@ -115,7 +120,7 @@ class Game:
             self.player1 = GENN(KNIGHT_IMAGE,1)
             self.player1.net = self.player_1_nets[self.process_id]
 
-            if rounds % 11 == 0 and rounds != 0 and game_num == 9:  ## In every 10th round models will be retrieved from omega
+            """if rounds % 11 == 0 and rounds != 0 and game_num == 9:  ## In every 10th round models will be retrieved from omega
                 original = str(self.player1.net)
                 newname = str('gen%dp%d' % (self.rounds, self.process_id))
                 self.player1.model = om.models.get(original)
@@ -123,15 +128,16 @@ class Game:
                 ## Save model to omega as current round model
                 om.models.put(self.player1.model, newname)
                 print("Player",original,"saved to omega as",newname)
+                """
 
-            elif game_num < 9:  ## If this isn't the first game of the round, keep the same model
+            if game_num < 9:  ## If this isn't the first game of the round, keep the same model
                 self.player1.model = model
                 
 #                self.player1.model = om.models.get('gen%dp%d' % (self.rounds, self.process_id))
                 
             else: ## if it's the first game in the round, create the network
                 self.player1.model = self.player1.net.createNetwork(self.rounds, self.process_id)
-                print("Creating new network")
+                print("Creating new network for player %d" % (p_id))
         
         """elif self.player1_type.lower() == 'range':
             from FSMPlayers.RangePlayerSim import RangePlayer
@@ -363,10 +369,11 @@ class Game:
         self.player2.lastMovement = ""
         self.player2.currentTrend = 0
       
-        print("Game setup complete for Process ID/Network: ",str(self.process_id))
-    
+#        print("Game setup complete for Process ID/Network: ",str(self.process_id))
     def end_game(self):
  
+#        collect()  ## Clear out object history
+    
         self.player1_score += self.player1.score
         self.player2_score += self.player2.score
                 
@@ -391,11 +398,11 @@ class Game:
                        
         if self.player1.shield == 0:
             self.player1.health = self.player1.health + 500
-            print("Player1 gets shield bonus, final health is",self.player1.health)
+#            print("Player1 gets shield bonus, final health is",self.player1.health)
             
         if self.player2.shield == 0:
             self.player1.health = self.player1.health - 500
-            print("Player1 gets shield penalty, final health is",self.player1.health)
+#            print("Player1 gets shield penalty, final health is",self.player1.health)
         
         self.player1.health_diff = self.player1.health - self.player2.health
         self.health_diff += self.player1.health_diff
@@ -409,9 +416,9 @@ class Game:
         else: 
             self.setup(self.player1.model)
             return True
-        
+    
     def init_player(self):
-        print('Running init_player')
+#        print('Running init_player')
         self.grid[self.player1.center_y][self.player1.center_x] = 1
         self.grid[self.player2.center_y][self.player2.center_x] = 1
     
@@ -420,32 +427,26 @@ class Game:
     def arrow1(self):
         self.arw = ArrowSimulated(self.player1.center_x,self.player1.center_y,ARROW_SPEED,self.player1.box)
         self.player1.arrow_list.append(self.arw)
-        
     def arrow2(self):
 
         self.arw = ArrowSimulated(self.player2.center_x,self.player2.center_y,ARROW_SPEED,self.player2.box)
         self.player2.arrow_list.append(self.arw)
-        
     def fire1(self):
 
         self.fireball = FireballSimulated(self.player1.center_x,self.player1.center_y,ARROW_SPEED,self.player1.box)  
         self.player1.fireball_list.append(self.fireball)
-        
     def fire2(self):
 
         self.fireball = FireballSimulated(self.player2.center_x,self.player2.center_y,ARROW_SPEED,self.player2.box)  
         self.player2.fireball_list.append(self.fireball)
-    
     def equip_shield1(self):
 
         self.player1.health += 50
         self.player1.shield += 1
-    
     def equip_shield2(self):
 
         self.player2.health += 50
         self.player2.shield += 1
-
     def collisionCheck(self,player,projectile):
         if (
                 (     player.center_x - player.box <= projectile.center_x + projectile.box and player.center_x + player.box >= projectile.center_x + projectile.box  
@@ -459,7 +460,6 @@ class Game:
             ):
             return True
         return False
-    
     def update(self):
 
         # Attack Data Holder
@@ -585,8 +585,14 @@ class Game:
                 
             self.player2.knife_list.remove(self.knife)
         
+        ## Memory saving
+        """if not curtime % 499 == 0:
+            pass
+        else:
+            print("%d objects cleared" % (collect()))
+            """
         ## Reporting in console
-        interval = 249
+        interval = 1001
         if not curtime % interval == 0:  ## added intermittent updates instead of every move
             pass
         else:
@@ -675,27 +681,27 @@ class Game:
        
         # Check for end of game state
         if curtime >= max_moves:
-            print("Game has reached max moves of",str(max_moves))
+#            print("Game has reached max moves of",str(max_moves))
             
             if player_1_health == player_2_health:
                 self.draws += 1
-                print("Game ends in a draw")
+#                print("Game ends in a draw")
                 val = self.end_game()
                 
             elif player_1_health > player_2_health:
                 self.player1.score +=1
-                print("Player1 wins")
+#                print("Player1 wins")
                 val = self.end_game()
                 
             else:
                 self.player2.score +=1
-                print("Player2 wins")
+#                print("Player2 wins")
                 val = self.end_game()
              
         elif player_1_health <= 0 and player_2_health <= 0:
-            print("Both players are at zero health")
+#            print("Both players are at zero health")
             self.draws += 1
-            print("Game ends in a draw")
+#            print("Game ends in a draw")
             val = self.end_game()
                 
         elif player_2_health <= 0:

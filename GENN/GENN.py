@@ -7,6 +7,7 @@ from os import path
 from pandas import DataFrame
 from arcade import Sprite
 
+#@ray.remote
 class GENN(Sprite):
 
     def shootarrow(self):
@@ -34,7 +35,7 @@ class GENN(Sprite):
       hit.box = BOX
       arrow.hit = hit
       self.hitbox_list.append(hit)
-        
+     
     def equipshield(self):
       self.health += PLAYER_HEALTH*.5
       self.shield +=1
@@ -98,7 +99,6 @@ class GENN(Sprite):
                self.weights[weightType] = [float(i) for i in row]
                weightType +=1
                """
-               
     def update(self, rounds=None, process_id=None):
         
         self.curtime += 1
@@ -185,7 +185,7 @@ class GENN(Sprite):
         # Prepare model output for stream
         choices_a = asarray(choices).reshape(-1)
 
-        if not self.curtime % 1 == 0:  #enabled for every  move
+        """if not self.curtime % 1 == 0:  #enabled for every  move
             pass
         else:
             #Print The Log Result
@@ -221,6 +221,7 @@ class GENN(Sprite):
                 dataFrame.to_csv(file_name, mode='a', header=False, index=False)
             else:
                 dataFrame.to_csv(file_name, mode='w', header=True, index=False)  
+                """
 
         ## The coordinate predictions made in the first two fields 
         # are multiplied by static speed and the player moves there

@@ -4,6 +4,8 @@ from keras import layers
 from keras.layers import Dense, Input, concatenate
 from keras.models import Model
 import omegaml as om
+from util.constants import *
+import pickle
 
 RANDOM_SEED = 1
 SPRITE_SCALING = 0.5
@@ -35,40 +37,49 @@ MID_SPEED_HANDICAP = .09#1
 MAGE_IMAGE = 'images/mage.png'
 KNIGHT_IMAGE = 'images/lilknight.png'
 
+#@ray.remote
 class Counter(object):
     def __init__(self, initval=0):
         pass
 #        self.val = multiprocessing.RawValue('i', initval)
 #        self.lock = multiprocessing.Lock()
 
-    @property
-    def value(self):
-        return self.val.value
-    
+#    @property
+#    def value(self):
+#        return self.val.value
+ 
+#@ray.remote
 class HitBox(Sprite):
     z = 500
     y = ARROW_IMAGE_HEIGHT
 
+#@ray.remote
 class Knife(Sprite):
     def update(self, rounds=None, process_id=None):
         self.center_x += self.change_x
         self.center_y += self.change_y
 
+#@ray.remote
 class Arrow(Sprite):
     def update(self, rounds=None, process_id=None):
         self.center_x += self.change_x
         self.center_y += self.change_y
 
+#@ray.remote
 class Fireball(Sprite):
     def update(self, rounds=None, process_id=None):
         self.center_x += self.change_x
         self.center_y += self.change_y
+        
+#@ray.remote
 class ArrowSimulated:
     def __init__(self, x, y, v, box):
         self.x = x 
         self.y = y
         self.vel = v
         self.box = box
+        
+#@ray.remote
 class FireballSimulated:
     def __init__(self, x, y, v, box):
         self.x = x 
@@ -76,17 +87,34 @@ class FireballSimulated:
         self.vel = v
         self.box = box
 
+#@ray.remote
 class Layer:
     def __init__(self, weights):
         self.weights = weights
 
+#@ray.remote
 class Network:
     
     def __init__(self, layers): # layers comes from 
         self.layers = layers
-        
+            
     ## NH - corrected structure of output layers - instead of 5 separate layers, there are now
     # 2 layers, one for moves and one for attacks, with 2 and 3 output variables respectively
+    
+    """def dump_object(self, filename, obj):
+
+        if ".pickle" not in filename:
+            filename = filename + ".pickle"
+        with open(filename, 'wb') as handle:
+            pickle.dump(obj, handle)
+        return True
+
+    def load_object(self, filename):
+
+        with open(filename, 'rb') as handle:
+            obj = pickle.load(handle)
+            """
+
     
     def createNetwork(self, rounds, process_id):
         
@@ -123,11 +151,23 @@ class Network:
         model = Model(inputs=inputs,
                               outputs=outputs)
                
-        ## Save the model (either H5 or omega) for later access
+        ## Compile the model prior to saving
         model.compile('adadelta','mean_squared_error')
-        om.models.put(model, 'gen%dp%d' % (rounds, process_id))
+        
+        model_id = 'gen%dp%d' % (rounds, process_id)
+        
+        filename = str(model_id) + ".pickle"
+        with open(filename, 'wb') as handle:
+            pickle.dump(self, handle)
+            
+#        om.store.put(self, 'gen%dp%d' % (rounds, process_id))
+        
+        ## Save model via pickle
+        #dump_object(str(model), model)
+        
+#        om.models.put(model, 'gen%dp%d' % (rounds, process_id))
 #        model = om.runtime.require('gpu').model('gen%dp%d' % (rounds, process_id))
-        print("Model gen%dp%d stored in omega cloud" % (rounds, process_id))
+#        print("Model gen%dp%d stored in omega cloud" % (rounds, process_id))
 
         counter = 0
         

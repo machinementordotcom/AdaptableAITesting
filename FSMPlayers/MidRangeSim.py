@@ -4,6 +4,7 @@ from random import choices
 from util.constants import *
 from arcade import Sprite
 
+#@ray.remote
 class MidRangePlayer(Sprite):
     def check_for_collision(self,player,projectiles):
         for projectile in projectiles:
@@ -17,9 +18,13 @@ class MidRangePlayer(Sprite):
                 if start_x - projectile.box <= player.center_x + player.box or start_x + projectile.box >= player.center_x - player.box and start_y + projectile.box <= player.center_y - player.box or start_y + projectile.box >= player.center_y - player.box:
                     return True
         return False
+    
+#    @ray.method    
     def equipshield(self):
         self.health += PLAYER_HEALTH*.5
         self.shield +=1
+    
+#    @ray.method    
     def throwfire(self):
         fireball = Fireball() #"images/fire.png", .1)
         fireball.center_x = self.center_x
@@ -46,6 +51,7 @@ class MidRangePlayer(Sprite):
         fireball.hit = hit
         self.hitbox_list.append(hit)
 
+#   @ray.method    
     def update(self):
         self.curtime += 1
         x_diff = self.opponent.center_x - self.center_x

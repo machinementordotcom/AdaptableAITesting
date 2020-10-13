@@ -1,4 +1,6 @@
 
+#import ray
+from gc import collect
 from sys import argv
 from numpy import asarray
 from os import path, remove
@@ -8,14 +10,24 @@ from pandas import read_csv, DataFrame
 import omegaml as om
 from time import time
 from datetime import datetime
-from multiprocessing import Pool
+from billiard import Pool
 #from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from sim import Game
 from util.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE
 #from util.inputFunctions import * 
 from GENN.GENNFunctions import *
- 
+#from ray.util import ActorPool
+import pickle
 
+om = om.setup(username='devconnect', 
+          apikey='2d4b51a02d0a9c91507cca882ee5e5f5188808fc')
+
+"""@ray.remote(num_cpus=0.3333,
+#            max_restarts=5,
+            max_retries=3,
+#           object_store_memory=200 * 1024 *1024,
+           )
+           """
 
 def runOneGame(a):
 
@@ -41,7 +53,7 @@ def main(args):
         else:
             print("io_stream.csv not found")
         
-        om.datasets.drop('GENN_io_stream')
+        om.datasets.drop('GENN_io_stream_TITAN')
         print('\nio stream dataset dropped\n')
     except:
         print("\nio stream dataset not found or unable to drop\n")
@@ -54,21 +66,27 @@ def main(args):
         else:
             print("data_log.csv not found")
                 
-        om.datasets.drop('GENN_data')
+        om.datasets.drop('GENN_data_TITAN')
         print('\nGENN game dataset dropped\n')
     except:
         print("\nGENN game dataset not found or unable to drop\n")
         pass
     
     try:
-        om.datasets.drop('GENN_model_log')
+        om.datasets.drop('GENN_model_log_TITAN')
         print('\nGENN model_log dropped\n')
     except:
         print("\nGENN model log not found or unable to drop\n")
         pass
     
+    try:
+        remove("AdaptableAITesting/*.pickle")
+        print("all pickled nets removed")
+    except:
+        print("no pickled nets found")
+    
     ## Delete all models from previous games
-    for i in range(10):
+    """for i in range(10):
         for j in range(100):
             try:
                 model_id = 'gen%dp%d' % (i, j)
@@ -76,12 +94,14 @@ def main(args):
                 print(model_id,"dropped")
             except:
                 pass
+                """
         
     if train == 'yes':
         # Game/Network will be played in the same time per generation
-        conCurrentGame = 10
+        conCurrentGame = 32
+        print(conCurrentGame,"concurrent games will be played")
         # Total Generation 
-        generations = 33
+        generations = 11
         simulation_player_1 = 'genn'
         simulation_player_2 = 'fsm'
         player_2_type = 'range'
@@ -93,7 +113,7 @@ def main(args):
         evolutions = True
         
         ## Select optimal number of pools
-        pools = int(6)  # 1.5 per core
+        pools = 32  # 2x per core
         
         print("All variables are set")
     else:
@@ -148,6 +168,20 @@ def main(args):
 
         for rounds in range(generations):
             
+            # First we have to initialize Ray, which will create mini cluster in CPUs
+#            ray.shutdown() # in case it's still running 
+            collect()
+            """ray.init(_lru_evict=False,
+ #                    max_task_retries = -1,
+                     ignore_reinit_error=True,
+                     _plasma_directory='/plasma',
+                     _redis_max_memory=2000 * 1024 * 1024,
+#                     memory=3000 * 1024 * 1024,
+            #         dashboard_host='127.0.0.1',
+                     object_store_memory=500 * 1024 * 1024,
+                     include_dashboard=False,
+                     )
+                    """
             print("Total rounds %d out of %d" % (rounds, generations))
             
             if evolutions == True and train == 'yes':
@@ -161,15 +195,16 @@ def main(args):
                         
                         # Export the data log to omega storage - can be run at any time
                         data = read_csv("data_log.csv")
-                        om.datasets.put(data, 'GENN_data', append=True, n_jobs=2)
+                        om.datasets.put(data, 'GENN_data_TITAN', append=True, n_jobs=2)
                         remove("data_log.csv")
                         print(data.shape)
                         
                         # Save data stream
-                        stream = read_csv("io_stream.csv")
-                        om.datasets.put(stream, 'GENN_io_stream', append=True, n_jobs=2)
-                        remove("io_stream.csv")
-                        print(stream.shape)
+                        if player_1_type == 'agenn':
+                            stream = read_csv("io_stream.csv")
+                            om.datasets.put(stream, 'GENN_io_stream_TITAN', append=True, n_jobs=2)
+                            remove("io_stream.csv")
+                            print(stream.shape)
                                                 
                         print("evolutionHealth:",str(evolutionHealth))
                         
@@ -205,7 +240,7 @@ def main(args):
                                 timestamp = [datetime.now()]
                             )
                             dataFrame = DataFrame(model_log)
-                            om.datasets.put(dataFrame, 'GENN_model_log', append=True)
+                            om.datasets.put(dataFrame, 'GENN_model_log_TITAN', append=True)
                             rank -= 1
                                                     
                         # NH - changed 'newNets' to 'bestThirtyNets'
@@ -227,24 +262,28 @@ def main(args):
 
                             for gen in range(start_gen,rounds):
                                 for model in range(count):
-                                    player_1_nets.append('gen%dp%d' % (gen, model))
+                                    filename = 'gen%dp%d.pickle' % (gen, model)
+                                    with open(filename, 'rb') as handle:
+                                        net = pickle.load(handle)
+                                        player_1_nets.append(net)
                                 
                             # Got the list, now send it to where it will initialize and play the games
                             print("These are the players teed up for 11th gen test round:",player_1_nets)
                         
                         else:  ## Perform evolution
-                            print(bestNets[0])
-                            print(bestNets[0].layers)
-                            print(bestNets[0].layers[0].weights)
-                            try: ## If nets are listed in network form, this will work
-                                xoverNets = crossoverNets(bestNets+bestNets+bestNets) # top 10% is used to create 30% of nets 
-                            except:  ## After an 11th gen, nets will be listed in omega format, must convert
+                            #print(bestNets[0])
+                            #print(bestNets[0].layers)
+                            #print(bestNets[0].layers[0].weights)
+#                            try: ## If nets are listed in network form, this will work
+                            xoverNets = crossoverNets(bestNets+bestNets+bestNets) # top 10% is used to create 30% of nets 
+                            """except:  ## After an 11th gen, nets will be listed in omega format, must convert
                                 last_round = rounds - 1
                                 bestNets = []
                                 for i in bestTen:
                                     net = om.models.get('gen%dp%d' % (last_round, i))
                                     bestNets.append(net)
-                                xoverNets = crossoverNets(bestNets+bestNets+bestNets)   
+                                xoverNets = crossoverNets(bestNets+bestNets+bestNets)
+                                """
                             print("These are xoverNets (30%):",str(xoverNets))
 
                             # Bit Flip mutation
@@ -281,17 +320,21 @@ def main(args):
                         player_2_nets = mutateNets(player_2_nets)
             
            
-            print("Creating",pools,"process or thread pools")
+#            print("Creating",pools,"process or thread pools")
 #            ex = ProcessPoolExecutor(max_workers=pools)  
-            ex = Pool(pools) 
+            ex = Pool(pools,
+                      maxtasksperchild=1
+                     ) 
             
+            #r = [runOneGame.remote(i) for i in [ x + [i - 1]  \
             result = ex.map(runOneGame,[ x + [i - 1]  \
                                        for i,x in enumerate([x for x in \
                                                              [[SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_TITLE,
                                                              games_per_network,player_1_type,player_2_type,
                                                              conCurrentGame,rounds,player_1_nets,
-                                                             player_2_nets,bestNets]]*conCurrentGame],1)],1) #chunksize
-            
+                                                             player_2_nets,bestNets]]*conCurrentGame],1)])
+            #result = ray.get(r)
+            #ray.shutdown()
             ex.close()
             ex.join()
             

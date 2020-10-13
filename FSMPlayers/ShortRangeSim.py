@@ -4,6 +4,7 @@ from random import choices
 from util.constants import *
 from arcade import Sprite
 
+#@ray.remote
 class ShortRangePlayer(Sprite):
     
     def check_for_collision(self,player,projectiles):
@@ -19,10 +20,12 @@ class ShortRangePlayer(Sprite):
                     return True
         return False
     
+#    @ray.method    
     def equipshield(self):
         self.health += PLAYER_HEALTH*.5
         self.shield +=1
         
+#    @ray.method    
     def shortattack(self):
         knife = Knife("images/knife.png",.1)
         knife.center_x = self.center_x
@@ -33,6 +36,7 @@ class ShortRangePlayer(Sprite):
         self.knife_list.append(knife)
         # self.hitbox_list.append(hit)
         
+#    @ray.method    
     def update(self):
         self.curtime += 1
         x_diff = self.opponent.center_x - self.center_x

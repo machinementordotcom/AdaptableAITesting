@@ -5,6 +5,7 @@ from numpy import asarray
 from util.constants import Layer, Network 
 import omegaml as om
 
+
 def createNets(conCurrentGame): # creates new network with randomized layers and nodes
 
     maxlayers = 100
@@ -24,7 +25,7 @@ def createNets(conCurrentGame): # creates new network with randomized layers and
                 nodeWeights = rand(inputsNum,totalNodes[j-1],totalNodes[j]).tolist()[0]
             layers.append(Layer(nodeWeights))
         nets.append(Network(layers))
-    print("\ncreateNets has run with nets=\n",str(nets))
+#    print("\ncreateNets has run with nets=\n",str(nets))
     return nets
 
 def createNet(specificLayers = None,specificNodes = None): # creates new net with option to specify number of layers and nodes
@@ -72,9 +73,6 @@ def crossoverNets(nets):
     returns:
         nets with Crossover
     """
-    
-    print("Crossover mutation\n These are the variables:\n",
-         "nets:",nets)
     for net in nets:
         # Total Loop, length(nets)x length(layers, per net)
         for layer in net.layers:
@@ -83,50 +81,68 @@ def crossoverNets(nets):
             for _ in layer.weights:
                 # Set Initial Indexes(Select weight for exchange, first swap value)
                 # Take a random index from nets
-                initial_net_index = randint(0,len(nets)-1)
-                print("This is initial_net_index",initial_net_index)
+                try:
+                    initial_net_index = randint(0,len(nets)-1)
+                except ValueError:
+                    initial_net_index = 0
+                try:
                 # Take a random index from layers on that net
-                initial_layer_index = randint(0, len(nets[initial_net_index].layers)-1)
-                print("This is initial_layer_index",initial_layer_index)
-                # Take a random index for Weights 2D from the layer (list)
-                initial_weight2D_index = randint(0, len(nets[initial_net_index]\
-                                                               .layers[initial_layer_index]\
-                                                               .weights)-1)
-                print("This is initial_weight2D_index",initial_weight2D_index)
-                # Take a random index for Weights 1D from the Weights 1D (float)
-                initial_weight1D_index = randint(0, len(nets[initial_net_index]\
-                                                              .layers[initial_layer_index]\
-                                                              .weights[initial_weight2D_index])-1)
-                print("This is initial_weight1D_index",initial_weight1D_index)
+                    initial_layer_index = randint(0, len(nets[initial_net_index].layers)-1)
+                except ValueError:
+                    initial_layer_index = 0
+                try:
+                    # Take a random index for Weights 2D from the layer (list)
+                    initial_weight2D_index = randint(0, len(nets[initial_net_index]\
+                                                                   .layers[initial_layer_index]\
+                                                                   .weights)-1)
+                except ValueError:
+                    initial_weight2D_index = 0
+                try:
+                    # Take a random index for Weights 1D from the Weights 1D (float)
+                    initial_weight1D_index = randint(0, len(nets[initial_net_index]\
+                                                                  .layers[initial_layer_index]\
+                                                                  .weights[initial_weight2D_index])-1)
+                except ValueError:
+                    initial_weight1D_index=0
                 # Set Final Indexes(Replace weight for exchange, second swap value)
-                # Take a random index from nets
-                final_net_index = randint(0,len(nets)-1)
-                print("This is final_net_index",final_net_index)
-                # Take a random index from layers on that net
-                final_layer_index = randint(0, len(nets[final_net_index].layers)-1)
-                print("This is final_layer_index",final_layer_index)
-                # Take a random index for Weights 2D from the layer (list)
-                final_weight2D_index = randint(0, len(nets[final_net_index]\
-                                                             .layers[final_layer_index].weights)-1)
-                print("This is final_weight2D_index", final_weight2D_index)
-                # Take a random index for Weights 1D from the Weights 1D (float)
-                final_weight1D_index = randint(0, len(nets[final_net_index]\
-                                                            .layers[final_layer_index]\
-                                                            .weights[final_weight2D_index])-1)
-                print("This is final_weight1D_index",final_weight1D_index)
+                try:
+                    # Take a random index from nets
+                    final_net_index = randint(0,len(nets)-1)
+                except ValueError:
+                    final_net_index = 0
+                try:
+                    # Take a random index from layers on that net
+                    final_layer_index = randint(0, len(nets[final_net_index].layers)-1)
+                except ValueError:
+                    final_layer_index = 0
+                try:
+                    # Take a random index for Weights 2D from the layer (list)
+                    final_weight2D_index = randint(0, len(nets[final_net_index]\
+                                                                 .layers[final_layer_index].weights)-1)
+                except ValueError:
+                    final_weight2D_index = 0
+                try:
+                    # Take a random index for Weights 1D from the Weights 1D (float)
+                    final_weight1D_index = randint(0, len(nets[final_net_index]\
+                                                                .layers[final_layer_index]\
+                                                                .weights[final_weight2D_index])-1)
+                except ValueError:
+                    final_weight1D_index = 0
                 # Now swap values
                 # Simply it's like this a,b = b,a but done using swap function
                 nets[initial_net_index] \
                 .layers[initial_layer_index] \
                 .weights[initial_weight2D_index][initial_weight1D_index] \
-                , nets[final_net_index] \
+                , nets[final_net_index ] \
                 .layers[final_layer_index] \
-                .weights[final_weight2D_index][final_weight1D_index] = swap(nets[initial_net_index]\
-                                                                            .layers[initial_layer_index]\
-                                                                            .weights[initial_weight2D_index][initial_weight1D_index]\
-                                                                            , nets[final_net_index ].layers[final_layer_index]\
-                                                                            .weights[final_weight2D_index][final_weight1D_index])
+                .weights[final_weight2D_index][final_weight1D_index] = swap(
+                        nets[initial_net_index].layers[initial_layer_index]\
+                        .weights[initial_weight2D_index][initial_weight1D_index],
+                        nets[final_net_index ].layers[final_layer_index]\
+                        .weights[final_weight2D_index][final_weight1D_index]
+                        )
     return nets
+
 
 def mutateNets(nets):
     for index, current in enumerate(nets): 
