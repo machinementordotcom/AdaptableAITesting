@@ -262,7 +262,7 @@ def main(args):
 
                             for gen in range(start_gen,rounds):
                                 for model in range(count):
-                                    filename = 'gen%dp%d.pickle' % (gen, model)
+                                    filename = '/app/pylib/user/AdaptableAITesting/models/gen%dp%d.pickle' % (gen, model)
                                     with open(filename, 'rb') as handle:
                                         net = pickle.load(handle)
                                         player_1_nets.append(net)

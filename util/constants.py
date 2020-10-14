@@ -156,7 +156,8 @@ class Network:
         
         model_id = 'gen%dp%d' % (rounds, process_id)
         
-        filename = str(model_id) + ".pickle"
+#        print("Attempting to pickle %s net" % model_id)
+        filename = str('/app/pylib/user/AdaptableAITesting/models/%s' % model_id) + ".pickle"        
         with open(filename, 'wb') as handle:
             pickle.dump(self, handle)
             
