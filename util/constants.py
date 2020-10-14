@@ -4,7 +4,7 @@ from keras import layers
 from keras.layers import Dense, Input, concatenate
 from keras.models import Model
 import omegaml as om
-from util.constants import *
+from AdaptableAITesting.util.constants import *
 import pickle
 
 RANDOM_SEED = 1
@@ -34,8 +34,8 @@ KNIFE_HITS_UNTIL_DEATH = 3.2 * SCALING_ADJUSTMENT
 KNIFE_DAMAGE = PLAYER_HEALTH / KNIFE_HITS_UNTIL_DEATH
 SHORT_SPEED_HANDICAP = .145#.955
 MID_SPEED_HANDICAP = .09#1
-MAGE_IMAGE = 'images/mage.png'
-KNIGHT_IMAGE = 'images/lilknight.png'
+MAGE_IMAGE = '/app/pylib/user/AdaptableAITesting/images/mage.png'
+KNIGHT_IMAGE = '/app/pylib/user/AdaptableAITesting/images/lilknight.png'
 
 #@ray.remote
 class Counter(object):

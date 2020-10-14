@@ -26,7 +26,7 @@ class MidRangePlayer(Sprite):
     
 #    @ray.method    
     def throwfire(self):
-        fireball = Fireball() #"images/fire.png", .1)
+        fireball = Fireball("/app/pylib/user/AdaptableAITesting/images/fire.png", .1)
         fireball.center_x = self.center_x
         fireball.center_y = self.center_y
         fireball.start_x = self.center_x # for tracking 
@@ -38,7 +38,7 @@ class MidRangePlayer(Sprite):
         fireball.box = BOX
         self.fireball_list.append(fireball)
 
-        hit = HitBox() #"images/fire.png")
+        hit = HitBox("/app/pylib/user/AdaptableAITesting/images/fire.png")
         hit._set_alpha(0)
         hit._set_height(sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
         hit._set_width(ARROW_IMAGE_HEIGHT)

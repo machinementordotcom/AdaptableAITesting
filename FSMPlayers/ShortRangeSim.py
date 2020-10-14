@@ -27,7 +27,7 @@ class ShortRangePlayer(Sprite):
         
 #    @ray.method    
     def shortattack(self):
-        knife = Knife("images/knife.png",.1)
+        knife = Knife("/app/pylib/user/AdaptableAITesting/images/knife.png",.1)
         knife.center_x = self.center_x
         knife.center_y = self.center_y
         knife.angle = self.angle-180

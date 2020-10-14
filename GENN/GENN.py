@@ -11,7 +11,7 @@ from arcade import Sprite
 class GENN(Sprite):
 
     def shootarrow(self):
-      arrow = Arrow("images/arrow.png",.1)
+      arrow = Arrow("/app/pylib/user/AdaptableAITesting/images/arrow.png",.1)
       arrow.center_x = self.center_x
       arrow.center_y = self.center_y
       arrow.start_x = self.center_x # for tracking 
@@ -24,7 +24,7 @@ class GENN(Sprite):
 
       self.arrow_list.append(arrow)
 
-      hit = HitBox("images/fire.png")
+      hit = HitBox("/app/pylib/user/AdaptableAITesting/images/fire.png")
       hit._set_alpha(0)
       hit._set_height(sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
       hit._set_width(ARROW_IMAGE_HEIGHT)
@@ -41,7 +41,7 @@ class GENN(Sprite):
       self.shield +=1
         
     def throwfire(self):
-      fireball = Fireball("images/fire.png", .1)
+      fireball = Fireball("/app/pylib/user/AdaptableAITesting/images/fire.png", .1)
       fireball.center_x = self.center_x
       fireball.center_y = self.center_y
       fireball.start_x = self.center_x # for tracking 
@@ -52,7 +52,7 @@ class GENN(Sprite):
       fireball.vel = ARROW_SPEED
       fireball.box = BOX
       self.fireball_list.append(fireball)
-      hit = HitBox("images/fire.png")
+      hit = HitBox("/app/pylib/user/AdaptableAITesting/images/fire.png")
       hit._set_alpha(0)
       hit._set_height(sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
       hit._set_width(ARROW_IMAGE_HEIGHT)
@@ -65,7 +65,7 @@ class GENN(Sprite):
       self.hitbox_list.append(hit)
 
     def shortattack(self):
-      knife = Knife("images/knife.png",.1)
+      knife = Knife("/app/pylib/user/AdaptableAITesting/images/knife.png",.1)
       knife.center_x = self.center_x
       knife.center_y = self.center_y
       knife.angle = self.angle-180

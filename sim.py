@@ -11,10 +11,10 @@ from time import time
 # from FSMPlayers.HumanPlayer import *
 # from util.inputFunctions import *
 # from DynamicController.DynamicControllerSim import *
-from GENN.GENN import * 
-from util.constants import *
+from AdaptableAITesting.GENN.GENN import * 
+from AdaptableAITesting.util.constants import *
 from numpy import zeros
-from GENN.GENNFunctions import *
+from AdaptableAITesting.GENN.GENNFunctions import *
 from datetime import datetime
 from pandas import DataFrame
 from gc import collect

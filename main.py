@@ -10,12 +10,12 @@ from pandas import read_csv, DataFrame
 import omegaml as om
 from time import time
 from datetime import datetime
-from billiard import Pool
+from multiprocessing import Pool
 #from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from sim import Game
-from util.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE
+from AdaptableAITesting.sim import Game
+from AdaptableAITesting.util.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE
 #from util.inputFunctions import * 
-from GENN.GENNFunctions import *
+from AdaptableAITesting.GENN.GENNFunctions import *
 #from ray.util import ActorPool
 import pickle
 
@@ -101,7 +101,7 @@ def main(args):
         conCurrentGame = 32
         print(conCurrentGame,"concurrent games will be played")
         # Total Generation 
-        generations = 11
+        generations = 3
         simulation_player_1 = 'genn'
         simulation_player_2 = 'fsm'
         player_2_type = 'range'
@@ -195,14 +195,14 @@ def main(args):
                         
                         # Export the data log to omega storage - can be run at any time
                         data = read_csv("data_log.csv")
-                        om.datasets.put(data, 'GENN_data_TITAN', append=True, n_jobs=2)
+                        om.datasets.put(data, 'GENN_data_HUGE', append=True, n_jobs=2)
                         remove("data_log.csv")
                         print(data.shape)
                         
                         # Save data stream
                         if player_1_type == 'agenn':
                             stream = read_csv("io_stream.csv")
-                            om.datasets.put(stream, 'GENN_io_stream_TITAN', append=True, n_jobs=2)
+                            om.datasets.put(stream, 'GENN_io_stream_HUGE', append=True, n_jobs=2)
                             remove("io_stream.csv")
                             print(stream.shape)
                                                 
@@ -240,7 +240,7 @@ def main(args):
                                 timestamp = [datetime.now()]
                             )
                             dataFrame = DataFrame(model_log)
-                            om.datasets.put(dataFrame, 'GENN_model_log_TITAN', append=True)
+                            om.datasets.put(dataFrame, 'GENN_model_log_HUGE', append=True)
                             rank -= 1
                                                     
                         # NH - changed 'newNets' to 'bestThirtyNets'

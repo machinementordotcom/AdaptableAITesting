@@ -1,7 +1,7 @@
 
 from math import cos, sin, degrees, radians, sqrt, atan2
 from random import choices
-from util.constants import *
+from AdaptableAITesting.util.constants import *
 from arcade import Sprite
 
 #@ray.remote
@@ -27,7 +27,7 @@ class RangePlayer(Sprite):
     
 #    @ray.method    
     def shootarrow(self):
-        arrow = Arrow("images/arrow.png",.1)
+        arrow = Arrow("/app/pylib/user/AdaptableAITesting/images/arrow.png",.1)
         arrow.center_x = self.center_x
         arrow.center_y = self.center_y
         arrow.start_x = self.center_x # for tracking 
@@ -40,7 +40,7 @@ class RangePlayer(Sprite):
 
         self.arrow_list.append(arrow)
 
-        hit = HitBox("images/fire.png")
+        hit = HitBox("/app/pylib/user/AdaptableAITesting/images/fire.png")
         hit._set_alpha(0)
         hit._set_height(sqrt(SCREEN_WIDTH**2 + SCREEN_HEIGHT**2))
         hit._set_width(ARROW_IMAGE_HEIGHT)

@@ -2,7 +2,7 @@
 from random import randint, uniform
 from numpy.random import rand, randint
 from numpy import asarray
-from util.constants import Layer, Network 
+from AdaptableAITesting.util.constants import Layer, Network 
 import omegaml as om
 
 
