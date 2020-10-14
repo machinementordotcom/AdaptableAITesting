@@ -98,7 +98,7 @@ def main(args):
         
     if train == 'yes':
         # Game/Network will be played in the same time per generation
-        conCurrentGame = 32
+        conCurrentGame = 100
         print(conCurrentGame,"concurrent games will be played")
         # Total Generation 
         generations = 3
@@ -113,7 +113,7 @@ def main(args):
         evolutions = True
         
         ## Select optimal number of pools
-        pools = 32  # 2x per core
+        pools = 100  # 2x per core
         
         print("All variables are set")
     else:
