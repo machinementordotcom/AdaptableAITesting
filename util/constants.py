@@ -37,6 +37,7 @@ MID_SPEED_HANDICAP = .09#1
 MAGE_IMAGE = '/app/pylib/user/AdaptableAITesting/images/mage.png'
 KNIGHT_IMAGE = '/app/pylib/user/AdaptableAITesting/images/lilknight.png'
 
+
 #@ray.remote
 class Counter(object):
     def __init__(self, initval=0):
@@ -153,13 +154,13 @@ class Network:
                
         ## Compile the model prior to saving
         model.compile('adadelta','mean_squared_error')
-        
-        model_id = 'gen%dp%d' % (rounds, process_id)
+        """     
+#        model_id = 'gen%dp%d' % (rounds, process_id)
         
 #        print("Attempting to pickle %s net" % model_id)
-        filename = str('/app/pylib/user/AdaptableAITesting/models/%s' % model_id) + ".pickle"        
-        with open(filename, 'wb') as handle:
-            pickle.dump(self, handle)
+#        filename = str('/app/pylib/user/AdaptableAITesting/models/%s' % model_id) + ".pickle"        
+#        with open(filename, 'wb') as handle:
+#            pickle.dump(self, handle)
             
 #        om.store.put(self, 'gen%dp%d' % (rounds, process_id))
         
@@ -170,8 +171,8 @@ class Network:
 #        model = om.runtime.require('gpu').model('gen%dp%d' % (rounds, process_id))
 #        print("Model gen%dp%d stored in omega cloud" % (rounds, process_id))
 
-        counter = 0
-        
+        #counter = 0
+        """        
         return model
                 
 

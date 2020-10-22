@@ -19,6 +19,12 @@ from AdaptableAITesting.GENN.GENNFunctions import *
 #from ray.util import ActorPool
 import pickle
 
+# Log messages to omega log
+print = om.logger.info
+
+# Models saves path as a constant
+PATH_TO_NETWORK = '/app/pylib/user/AdaptableAITesting/models/'
+
 om = om.setup(username='devconnect', 
           apikey='2d4b51a02d0a9c91507cca882ee5e5f5188808fc')
 
@@ -44,6 +50,7 @@ def main(args):
     graphOutput = 'no'
     train = 'yes'
     evolutions = True
+    
     
     ## Remove existing io_stream, if applicable
     try:
@@ -98,10 +105,10 @@ def main(args):
         
     if train == 'yes':
         # Game/Network will be played in the same time per generation
-        conCurrentGame = 100
-        print(conCurrentGame,"concurrent games will be played")
+        conCurrentGame = 10
+        print('%s concurrent games will be played' % conCurrentGame)
         # Total Generation 
-        generations = 3
+        generations = 25
         simulation_player_1 = 'genn'
         simulation_player_2 = 'fsm'
         player_2_type = 'range'
@@ -112,8 +119,15 @@ def main(args):
         train = 'yes'
         evolutions = True
         
+        
+        # Generation number to start. (Set to 0 if don't want to resume)
+        start_generation = 25
+        
+        # Select resume generations
+        gen_resume = 'yes'
+        
         ## Select optimal number of pools
-        pools = 100  # 2x per core
+        pools = 10  # 2x per core
         
         print("All variables are set")
     else:
@@ -166,7 +180,7 @@ def main(args):
         evolutionHealth = []
         bestNets = []  # NH - bestNets added
 
-        for rounds in range(generations):
+        for rounds in range(start_generation, generations):
             
             # First we have to initialize Ray, which will create mini cluster in CPUs
 #            ray.shutdown() # in case it's still running 
@@ -188,126 +202,158 @@ def main(args):
                 
                 if player_1_type in ['genn','agenn']: # NH - added agenn to ensure evolution will take place with agenn as with genn
                     
-                    if rounds != 0:
-                        
-                        ## If this is not the first round, then record and analyze the previous round
-                        # and evolve the networks
-                        
-                        # Export the data log to omega storage - can be run at any time
-                        data = read_csv("data_log.csv")
-                        om.datasets.put(data, 'GENN_data_HUGE', append=True, n_jobs=2)
-                        remove("data_log.csv")
-                        print(data.shape)
-                        
-                        # Save data stream
-                        if player_1_type == 'agenn':
-                            stream = read_csv("io_stream.csv")
-                            om.datasets.put(stream, 'GENN_io_stream_HUGE', append=True, n_jobs=2)
-                            remove("io_stream.csv")
-                            print(stream.shape)
-                                                
-                        print("evolutionHealth:",str(evolutionHealth))
-                        
-                        # NH - changed from .2 to .1 to take only top 10%
-                        bestTen = sorted(range(len(evolutionHealth)),
-                                            key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.1):]
-                        print("bestTen:",str(bestTen))                       
-                    
-                        # NH - added bestThirty for use in mutate and xover
-                        # No longer needed                        
-                        """bestThirty = sorted(range(len(evolutionHealth)),
-                                            key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.3):] 
-                        print("bestThirty:",str(bestThirty))
-                        """
-                        
-                        ## Retrieve the best 10 and 30% as a list of networks
-                        if len(bestTen) < 2:
-                            bestTenNets = itemgetter(bestTen[0])(player_1_nets)
-                            bestNets = asarray([bestTenNets]).tolist()
+                    if rounds != 0 :
+                        # Gen Resume is yes
+                        if gen_resume == 'yes':
+                            # Read Networks from pickle with the starting rounds (player_1)
+                            filename = PATH_TO_NETWORK + "player1_" + str(rounds) + ".pickle"
+                            with open(filename, 'rb') as handle:
+                                player_1_nets = pickle.load(handle)
+                            
+                            
+                            # We will require Player 2 nets in order to continue
+                            print("Creating opponent nets")
+                            player_2_nets = createNets(conCurrentGame)  
+                            
+                            # For next generations, we don't need to do it again, we will continue with other
+                            gen_resume = 'no'
                         else:
-                            bestTenNets = list(itemgetter(*bestTen)(player_1_nets)) 
-                            bestNets = bestTenNets
-                        print("These are the top 10% of Nets from previous round (top 10%):",str(bestTen))
                         
-                        ## Log best nets - recursively save each to omega using list
-                        rank = (len(bestTen))
-                        for net in bestTen:
-                            model_log = dict(
-                                round = [rounds - 1],
-                                player = [net],
-                                rank = [rank],
-                                fitness = [evolutionHealth[net]],
-                                timestamp = [datetime.now()]
-                            )
-                            dataFrame = DataFrame(model_log)
-                            om.datasets.put(dataFrame, 'GENN_model_log_HUGE', append=True)
-                            rank -= 1
-                                                    
-                        # NH - changed 'newNets' to 'bestThirtyNets'
-                        ## no longer needed
-                        """bestThirtyNets = list(itemgetter(*bestThirty)(player_1_nets)) 
-                        print("These are the top 30% of Nets from previous round (top 10%):",str(bestThirty))
-                        """
-                        
-                        ## Create training set from top players of previous round
-                        if player_1_type == 'agenn':
-                            create_training_set(rounds, bestTen)
-                            print("Training set created from round %d top players" % (rounds - 1))
-                        
-                        if rounds % 11 == 0: # Every 11th generation the top players from previous 10 generations are tested
-                        
-                            player_1_nets = []
-                            count = int(conCurrentGame * 0.1)
-                            start_gen = rounds - 10
+                            ## If this is not the first round, then record and analyze the previous round
+                            # and evolve the networks
 
-                            for gen in range(start_gen,rounds):
-                                for model in range(count):
-                                    filename = '/app/pylib/user/AdaptableAITesting/models/gen%dp%d.pickle' % (gen, model)
+                            # Export the data log to omega storage - can be run at any time
+                            try:
+                                data = read_csv("data_log.csv")
+                                om.datasets.put(data, 'GENN_data_HUGE', append=True, n_jobs=2)
+                                remove("data_log.csv")
+                                print(data.shape)
+                            except FileNotFoundError:
+                                print("data_log.csv not found")
+
+                            # Save data stream
+                            if player_1_type == 'agenn':
+                                stream = read_csv("io_stream.csv")
+                                om.datasets.put(stream, 'GENN_io_stream_HUGE', append=True, n_jobs=2)
+                                remove("io_stream.csv")
+                                print(stream.shape)
+
+                            print('evolutionHealth: %s' % str(evolutionHealth))
+
+                            # NH - changed from .2 to .1 to take only top 10%
+                            bestTen = sorted(range(len(evolutionHealth)),
+                                                key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.1):]
+                            #print("bestTen:",str(bestTen))                       
+
+                            # NH - added bestThirty for use in mutate and xover
+                            # No longer needed                        
+                            """bestThirty = sorted(range(len(evolutionHealth)),
+                                                key=lambda i: evolutionHealth[i])[-int(conCurrentGame*.3):] 
+                            print("bestThirty:",str(bestThirty))
+                            """
+
+                            ## Retrieve the best 10 and 30% as a list of networks
+                            if len(bestTen) < 2:
+                                bestTenNets = itemgetter(bestTen[0])(player_1_nets)
+                                bestNets = asarray([bestTenNets]).tolist()
+                            else:
+                                bestTenNets = list(itemgetter(*bestTen)(player_1_nets)) 
+                                bestNets = bestTenNets
+                            #print("These are the top 10% of Nets from previous round (top 10%):",str(bestTen))
+
+                            ## Log best nets - recursively save each to omega using list
+                            rank = (len(bestTen))
+                            for net in bestTen:
+                                model_log = dict(
+                                    round = [rounds - 1],
+                                    player = [net],
+                                    rank = [rank],
+                                    fitness = [evolutionHealth[net]],
+                                    timestamp = [datetime.now()]
+                                )
+                                dataFrame = DataFrame(model_log)
+                                om.datasets.put(dataFrame, 'GENN_model_log_HUGE', append=True)
+                                rank -= 1
+
+                            # NH - changed 'newNets' to 'bestThirtyNets'
+                            ## no longer needed
+                            """bestThirtyNets = list(itemgetter(*bestThirty)(player_1_nets)) 
+                            print("These are the top 30% of Nets from previous round (top 10%):",str(bestThirty))
+                            """
+
+                            ## Create training set from top players of previous round
+                            if player_1_type == 'agenn':
+                                create_training_set(rounds, bestTen)
+                                print("Training set created from round %d top players" % (rounds - 1))
+
+                            if rounds % 11 == 0: # Every 11th generation the top players from previous 10 generations are tested
+                                start_gen = rounds - 10
+                                player_1_nets = []
+                                count_top = int(conCurrentGame * 0.1)
+
+                                for gen in range(start_gen, rounds):
+                                    filename = PATH_TO_NETWORK + "player1_" + str(gen) + ".pickle"
                                     with open(filename, 'rb') as handle:
-                                        net = pickle.load(handle)
-                                        player_1_nets.append(net)
-                                
-                            # Got the list, now send it to where it will initialize and play the games
-                            print("These are the players teed up for 11th gen test round:",player_1_nets)
-                        
-                        else:  ## Perform evolution
-                            #print(bestNets[0])
-                            #print(bestNets[0].layers)
-                            #print(bestNets[0].layers[0].weights)
-#                            try: ## If nets are listed in network form, this will work
-                            xoverNets = crossoverNets(bestNets+bestNets+bestNets) # top 10% is used to create 30% of nets 
-                            """except:  ## After an 11th gen, nets will be listed in omega format, must convert
-                                last_round = rounds - 1
-                                bestNets = []
-                                for i in bestTen:
-                                    net = om.models.get('gen%dp%d' % (last_round, i))
-                                    bestNets.append(net)
-                                xoverNets = crossoverNets(bestNets+bestNets+bestNets)
+                                        temp_nets = pickle.load(handle)
+                                        temp_nets = temp_nets[:count_top]
+
+                                        for temp_net in temp_nets:
+                                            player_1_nets.append(temp_net)
+
+
                                 """
-                            print("These are xoverNets (30%):",str(xoverNets))
+                                player_1_nets = []
+                                count = int(conCurrentGame * 0.1)
+                                start_gen = rounds - 10
 
-                            # Bit Flip mutation
-                            mutatedNets = mutateNets(bestNets+bestNets+bestNets) 
-                            print("And these are the nets mutated from best nets (30%):",str(mutatedNets))
+                                for gen in range(start_gen,rounds):
+                                    for model in range(count):
+                                        filename = '/app/pylib/user/AdaptableAITesting/models/gen%dp%d.pickle' % (gen, model)
+                                        with open(filename, 'rb') as handle:
+                                            net = pickle.load(handle)
+                                            player_1_nets.append(net)
+                                """   
+                                # Got the list, now send it to where it will initialize and play the games
+                                print("These are the players teed up for 11th gen test round: %s" % player_1_nets)
 
-                            # The balance of nets will be created randomly
-                            randomNets = createNets(int(conCurrentGame)-len(bestTen)-len(xoverNets)-len(mutatedNets)) 
-                            print("These are the new random nets (30%):",str(randomNets))
+                            else:  ## Perform evolution
+                                #print(bestNets[0])
+                                #print(bestNets[0].layers)
+                                #print(bestNets[0].layers[0].weights)
+    #                            try: ## If nets are listed in network form, this will work
+                                xoverNets = crossoverNets(bestNets+bestNets+bestNets) # top 10% is used to create 30% of nets 
+                                """except:  ## After an 11th gen, nets will be listed in omega format, must convert
+                                    last_round = rounds - 1
+                                    bestNets = []
+                                    for i in bestTen:
+                                        net = om.models.get('gen%dp%d' % (last_round, i))
+                                        bestNets.append(net)
+                                    xoverNets = crossoverNets(bestNets+bestNets+bestNets)
+                                    """
+                                #print("These are xoverNets (30%):",str(xoverNets))
 
-                            # NH - pasting the network lists together
-                            player_1_nets = bestNets + randomNets + xoverNets + mutatedNets  
-                            print("These are player_1_nets for next round:",player_1_nets)
+                                # Bit Flip mutation
+                                mutatedNets = mutateNets(bestNets+bestNets+bestNets) 
+                                #print("And these are the nets mutated from best nets (30%):",str(mutatedNets))
 
-                        evolutionHealth = []
-                        print("evolutionHealth is reset to",evolutionHealth)
+                                # The balance of nets will be created randomly
+                                randomNets = createNets(int(conCurrentGame)-len(bestTen)-len(xoverNets)-len(mutatedNets)) 
+                                #print("These are the new random nets (30%):",str(randomNets))
+
+                                # NH - pasting the network lists together
+                                player_1_nets = bestNets + randomNets + xoverNets + mutatedNets  
+                                #print("These are player_1_nets for next round:",player_1_nets)
+
+                            evolutionHealth = []
+                            #print("evolutionHealth is reset to",evolutionHealth)
                         
                     else:
                         
                         ## If this is the first round, then create all the nets from scratch
                         
-                        print("Creating player 1 nets",player_1_type)
+                        print("Creating player 1 nets")
                         player_1_nets = createNets(conCurrentGame)
-                        print("Creating opponent nets",player_1_type)
+                        print("Creating opponent nets")
                         player_2_nets = createNets(conCurrentGame)        
                         
                 if player_2_type == 'genn':
@@ -322,6 +368,7 @@ def main(args):
            
 #            print("Creating",pools,"process or thread pools")
 #            ex = ProcessPoolExecutor(max_workers=pools)  
+            
             ex = Pool(pools,
                       maxtasksperchild=1
                      ) 
@@ -338,7 +385,7 @@ def main(args):
             ex.close()
             ex.join()
             
-            print("Round result set:",result)
+            print("Round result set: %s" % result)
 
             evolutionHealth = [float(i) for i in result]
                   
@@ -347,15 +394,28 @@ def main(args):
 
             draws += sum(int(i) == 0 for i in [int(i) for i in result])  
             leftOverHealth += sum([float(i) for i in result])
+            
+            # Create File Path for Player1 and Player2
+            filename_player1 = PATH_TO_NETWORK + "player1_" + str(rounds) + ".pickle"
+            filename_player2 = PATH_TO_NETWORK + "player2_" + str(rounds) + ".pickle"
+            
+            # Dump Player1 nets
+            with open(filename_player1, 'wb') as handle:
+                pickle.dump(player_1_nets, handle)
+            """
+            # Dump Player2 nets
+            with open(filename_player2, 'wb') as handle:
+                pickle.dump(player_2_nets, handle)
+            
 
-
+            """
         
-        print("player 1 (" + player_1_type + "):",player1Wins)
-        print("player 2 (" + player_2_type + "):",player2Wins)
+        #print("player 1 (" + player_1_type + "):",player1Wins)
+        #print("player 2 (" + player_2_type + "):",player2Wins)
 
-        print("Draws: ",draws)
-        print("Average Health Difference: ",round(abs(leftOverHealth) / (conCurrentGame * generations),4))
-        print("Total Time: ",round(time.time() - start,4))
+        #print("Draws: ",draws)
+        #print("Average Health Difference: ",round(abs(leftOverHealth) / (conCurrentGame * generations),4))
+        #print("Total Time: ",round(time() - start,4))
 
 if __name__ == "__main__":
     main(argv)
