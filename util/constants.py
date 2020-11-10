@@ -139,7 +139,29 @@ class Network:
                
         ## Compile the model prior to saving
         model.compile('adadelta','mean_squared_error')
+<<<<<<< HEAD
 
+=======
+        """     
+#        model_id = 'gen%dp%d' % (rounds, process_id)
+        
+#        print("Attempting to pickle %s net" % model_id)
+#        filename = str('/app/pylib/user/AdaptableAITesting/models/%s' % model_id) + ".pickle"        
+#        with open(filename, 'wb') as handle:
+#            pickle.dump(self, handle)
+            
+#        om.store.put(self, 'gen%dp%d' % (rounds, process_id))
+        
+        ## Save model via pickle
+        #dump_object(str(model), model)
+        
+#        om.models.put(model, 'gen%dp%d' % (rounds, process_id))
+#        model = om.runtime.require('gpu').model('gen%dp%d' % (rounds, process_id))
+#        print("Model gen%dp%d stored in omega cloud" % (rounds, process_id))
+
+        #counter = 0
+        """        
+>>>>>>> 1f42928bb4a28bfb5e631263666dc5c6964cdf73
         return model
                 
 
