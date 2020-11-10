@@ -18,8 +18,12 @@ from AdaptableAITesting.GENN.GENNFunctions import *
 from datetime import datetime
 from pandas import DataFrame
 from gc import collect
+from time import sleep
 
 seed(RANDOM_SEED)
+
+import omegaml as om
+print = om.logger.info
 
 # Then we need to use decorator on a function which we want to use for Ray
 #@ray.remote
@@ -137,7 +141,8 @@ class Game:
                 
             else: ## if it's the first game in the round, create the network
                 self.player1.model = self.player1.net.createNetwork(self.rounds, self.process_id)
-                print("Creating new network for player %d" % (p_id))
+                #sleep(2)
+                print("Created new network for player %d" % (p_id))
         
         """elif self.player1_type.lower() == 'range':
             from FSMPlayers.RangePlayerSim import RangePlayer
@@ -368,7 +373,9 @@ class Game:
         self.player2.trends = {'arrow':0,'fire':0,'knife':0,'towardsOpponent' :0, 'awayOpponent':0,"movementChanges":0,"biggestTrend":0}
         self.player2.lastMovement = ""
         self.player2.currentTrend = 0
-      
+        
+
+        
 #        print("Game setup complete for Process ID/Network: ",str(self.process_id))
     def end_game(self):
  
@@ -389,7 +396,7 @@ class Game:
         elif self.games <= 3 and self.games > 0: 
             self.player2_type = 'short'
         
-        print("Player",str(self.process_id),"game over.",str(self.games),"games left")
+        print('Player %s game over. %s games left' % (self.process_id, self.games))
                     
         # NH - added this here, as it seems more fitting to have it here
         
@@ -408,9 +415,9 @@ class Game:
         self.health_diff += self.player1.health_diff
 
         if self.games == 0: 
-            print("Round over for player",str(self.process_id),", calculating final fitness")
+            print('Round over for player %s, calculating final fitness' % self.process_id)
             self.health_diff = self.health_diff / self.totalGames  # Returns average fitness across all games in round
-            print("Final fitness is",self.health_diff)
+            print('Final fitness is %s' % self.health_diff)
             return self.health_diff
         
         else: 

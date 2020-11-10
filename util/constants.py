@@ -37,6 +37,7 @@ MID_SPEED_HANDICAP = .09#1
 MAGE_IMAGE = '/app/pylib/user/AdaptableAITesting/images/mage.png'
 KNIGHT_IMAGE = '/app/pylib/user/AdaptableAITesting/images/lilknight.png'
 
+
 #@ray.remote
 class Counter(object):
     def __init__(self, initval=0):
@@ -101,21 +102,6 @@ class Network:
     ## NH - corrected structure of output layers - instead of 5 separate layers, there are now
     # 2 layers, one for moves and one for attacks, with 2 and 3 output variables respectively
     
-    """def dump_object(self, filename, obj):
-
-        if ".pickle" not in filename:
-            filename = filename + ".pickle"
-        with open(filename, 'wb') as handle:
-            pickle.dump(obj, handle)
-        return True
-
-    def load_object(self, filename):
-
-        with open(filename, 'rb') as handle:
-            obj = pickle.load(handle)
-            """
-
-    
     def createNetwork(self, rounds, process_id):
         
         ## If network already exists, retrieve that model from omega and return it
@@ -153,25 +139,7 @@ class Network:
                
         ## Compile the model prior to saving
         model.compile('adadelta','mean_squared_error')
-        
-        model_id = 'gen%dp%d' % (rounds, process_id)
-        
-#        print("Attempting to pickle %s net" % model_id)
-        filename = str('/app/pylib/user/AdaptableAITesting/models/%s' % model_id) + ".pickle"        
-        with open(filename, 'wb') as handle:
-            pickle.dump(self, handle)
-            
-#        om.store.put(self, 'gen%dp%d' % (rounds, process_id))
-        
-        ## Save model via pickle
-        #dump_object(str(model), model)
-        
-#        om.models.put(model, 'gen%dp%d' % (rounds, process_id))
-#        model = om.runtime.require('gpu').model('gen%dp%d' % (rounds, process_id))
-#        print("Model gen%dp%d stored in omega cloud" % (rounds, process_id))
 
-        counter = 0
-        
         return model
                 
 
